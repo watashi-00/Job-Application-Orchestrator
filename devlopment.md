@@ -1,48 +1,83 @@
-purpose
-automation of, application and discovery job.
+# Job Application Orchestrator
 
-mvp
-0.0.1
---
-- Domain model
-- Filter Configuration
-- PDF Ingestor
-- Matching engine
-- Job Source Abstraction
-  - One real source
-- Locally persistence
-- Minimal dashboard
+## Purpose
 
---
-after consolidate mvp:
-- Search engines
-- multiple ATS
-- deduplication advanced
-- application automation
-- browser automation
-  - ?
-    - extension
-    - playwright
-    - another method
-- distributed workers
+Automation of job discovery and application.
 
---
-another features
-- Agent-friendly CLI
-    - Ingestion analysis
-        - Read candidate profile and historical data
-        - Generate and refine reliable keywords
-        - Identify relevant role/technology variations
-    - Job analysis
-        - Read job description
-        - Generate a concise summary
-        - Highlight strong matches
-        - Identify missing requirements
-        - Identify potential conflicts
-    - Matching assistance
-        - Explain why a job received its score
-        - Suggest improvements to filter configuration
-        - Suggest relevant keywords and synonyms
-    - Job filtering
-        - Filter by score, technology, seniority, location, salary, etc.
-        - Natural-language queries for job discovery and filtering
+---
+
+## MVP — `0.0.1`
+
+### Core
+
+* Domain Model
+* Filter Configuration
+* PDF Ingestor
+* Matching Engine
+
+### Job Discovery
+
+* Job Source Abstraction
+
+    * One real source
+
+### Persistence & Interface
+
+* Local Persistence
+* Minimal Dashboard
+
+---
+
+## After MVP Consolidation
+
+### Discovery
+
+* Search Engines
+* Multiple ATS
+* Advanced Deduplication
+
+### Application
+
+* Application Automation
+* Browser Automation
+
+    * TBD
+
+        * Browser Extension
+        * Playwright
+        * Alternative approach
+
+### Scalability
+
+* Distributed Workers
+
+---
+
+## Additional Features
+
+### Agent-Friendly CLI
+
+#### Ingestion Analysis
+
+* Read candidate profile and historical data
+* Generate and refine reliable keywords
+* Identify relevant role and technology variations
+
+#### Job Analysis
+
+* Read job description
+* Generate a concise summary
+* Highlight strong matches
+* Identify missing requirements
+* Identify potential conflicts
+
+#### Matching Assistance
+
+* Explain why a job received its score
+* Suggest improvements to filter configuration
+* Suggest relevant keywords and synonyms
+
+#### Job Filtering
+
+* Filter by score, technology, seniority, location, salary, etc.
+* Support natural-language queries for job discovery and filtering
