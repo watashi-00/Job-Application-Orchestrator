@@ -22,7 +22,7 @@ public class HttpEngine {
     Request-specific configuration is supplied through immutable request parameters,
     preventing shared mutable state between concurrent operations.
      */
-    public static void fetch() {
+    public static void fetch(RequestSpec requestSpec) {
 
     }
 
