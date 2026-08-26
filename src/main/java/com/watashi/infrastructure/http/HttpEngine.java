@@ -17,4 +17,13 @@ public class HttpEngine {
         return INSTANCE;
     }
 
+    /*
+    The HTTP engine is stateless with respect to individual requests.
+    Request-specific configuration is supplied through immutable request parameters,
+    preventing shared mutable state between concurrent operations.
+     */
+    public static void fetch() {
+
+    }
+
 }
