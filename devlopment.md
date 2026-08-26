@@ -100,3 +100,83 @@ Automation of job discovery and application.
 │                  │                         │                        │
 └──────────────────┴─────────────────────────┴────────────────────────┘
 ```
+
+#### Possible future features
+* Email Inbox Integration
+    * Detect recruiter/contact emails
+    * Detect application status changes
+    * Associate conversations with applications
+    * Extract interview dates and deadlines
+
+* Calendar Integration
+    * Detect scheduled interviews
+    * Create/update interview events
+    * Track technical interviews and meetings
+
+* Application Tracking
+    * Track application lifecycle
+    * Detect stale applications
+    * Track response time
+    * Maintain application history
+
+* Document Management
+    * Multiple CV versions
+    * Cover letters
+    * Portfolio versions
+    * Job-specific documents
+
+* Interview Management
+    * Interview preparation notes
+    * Job-specific technical topics
+    * Questions asked in previous interviews
+    * Personal feedback and notes
+
+* Recruiter & Company Intelligence
+    * Company profile
+    * Recruiter information
+    * Previous interactions
+    * Company/application history
+
+* Job History & Analytics
+    * Application conversion rate
+    * Response rate
+    * Interview rate
+    * Offer rate
+    * Rejection rate
+    * Average time between stages
+    * Performance by job source
+
+* Application Recommendations
+    * Recommend whether to apply
+    * Identify missing requirements
+    * Estimate application priority
+    * Suggest CV/profile variant
+
+* Follow-up Automation
+    * Track when follow-up is appropriate
+    * Generate follow-up drafts
+    * Remind about pending responses
+
+* Browser Extension
+    * Detect jobs while browsing
+    * Send current job to orchestrator
+    * Show match score
+    * Show missing requirements
+    * Save job with one action
+
+* Import / Export
+    * Import application history
+    * Export applications and analytics
+    * Backup/restore local database
+
+* Notifications
+    * New high-match opportunities
+    * Recruiter responses
+    * Interview reminders
+    * Application status changes
+
+* Multi-profile Support
+    * Different CVs
+    * Different career objectives
+    * Different technology preferences
+    * Different geographic constraints
