@@ -1,9 +1,11 @@
 package com.watashi.infrastructure.http;
 
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.concurrent.CompletableFuture;
 
 public class HttpEngine {
-
     private static final HttpEngine INSTANCE =  new HttpEngine();
     private final HttpClient httpClient;
 
@@ -22,8 +24,23 @@ public class HttpEngine {
     Request-specific configuration is supplied through immutable request parameters,
     preventing shared mutable state between concurrent operations.
      */
-    public static void fetch(RequestSpec requestSpec) {
+    public CompletableFuture<HttpResponse<String>> fetch(RequestSpec requestSpec) {
+        return sendAsync(requestSpec);
+    }
 
+    private CompletableFuture<HttpResponse<String>> sendAsync(RequestSpec requestSpec) {
+        var request = buildRequest(requestSpec);
+
+        return httpClient.sendAsync(
+                request,
+                HttpResponse.BodyHandlers.ofString()
+        );
+    }
+
+    private HttpRequest buildRequest(RequestSpec requestSpec) {
+        var builder = HttpRequest.newBuilder(requestSpec.uri());
+        requestSpec.headers().forEach(builder::setHeader);
+        return builder.GET().build();
     }
 
 }
