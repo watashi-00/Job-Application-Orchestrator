@@ -81,3 +81,22 @@ Automation of job discovery and application.
 
 * Filter by score, technology, seniority, location, salary, etc.
 * Support natural-language queries for job discovery and filtering
+
+
+#### Possible Layout
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                          <APPLICATION NAME>                         │
+├──────────────────┬─────────────────────────┬────────────────────────┤
+│ NAVBAR           │ CONTENT                 │ AGENT                  │
+├──────────────────┼─────────────────────────┼────────────────────────┤
+│                  │                         │                        │
+│                  │                         │                        │
+│                  │                         │                        │
+│                  │                         │                        │
+│                  │                         │                        │
+│                  │                         │                        │
+│                  │                         │                        │
+└──────────────────┴─────────────────────────┴────────────────────────┘
+```
