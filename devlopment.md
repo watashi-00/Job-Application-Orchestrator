@@ -180,3 +180,14 @@ Automation of job discovery and application.
     * Different career objectives
     * Different technology preferences
     * Different geographic constraints
+
+---
+
+### ideas
+Scheduled launcher
+  - Linux
+    - systemd timer
+    - cron
+    - at
+  - Windows
+    - Task Scheduler
