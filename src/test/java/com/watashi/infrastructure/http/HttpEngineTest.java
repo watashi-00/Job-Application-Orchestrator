@@ -46,8 +46,8 @@ public class HttpEngineTest extends TestCase {
         var futureA = engine.fetch(requestA);
         var futureB = engine.fetch(requestB);
 
-        var responseA = futureA.get(10, TimeUnit.SECONDS);
-        var responseB = futureB.get(10, TimeUnit.SECONDS);
+        var responseA = futureA.get(5, TimeUnit.SECONDS);
+        var responseB = futureB.get(5, TimeUnit.SECONDS);
 
         assertNotNull(responseA);
         assertNotNull(responseB);
