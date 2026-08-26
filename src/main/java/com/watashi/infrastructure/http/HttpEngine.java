@@ -6,14 +6,13 @@ import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
 
 public class HttpEngine {
-    private static final HttpEngine INSTANCE =  new HttpEngine();
+    private static final HttpEngine INSTANCE = new HttpEngine();
     private final HttpClient httpClient;
 
     private HttpEngine() {
-        httpClient = HttpClient.newBuilder()
-                .version(HttpClient.Version.HTTP_1_1)
-                .build();
-    }// private constructor
+        httpClient =
+                HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
+    } // private constructor
 
     public static HttpEngine getInstance() {
         return INSTANCE;
@@ -31,10 +30,7 @@ public class HttpEngine {
     private CompletableFuture<HttpResponse<String>> sendAsync(RequestSpec requestSpec) {
         var request = buildRequest(requestSpec);
 
-        return httpClient.sendAsync(
-                request,
-                HttpResponse.BodyHandlers.ofString()
-        );
+        return httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpRequest buildRequest(RequestSpec requestSpec) {
@@ -42,5 +38,4 @@ public class HttpEngine {
         requestSpec.headers().forEach(builder::setHeader);
         return builder.GET().build();
     }
-
 }

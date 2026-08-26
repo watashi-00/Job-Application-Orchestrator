@@ -5,5 +5,6 @@ import java.util.Map;
 
 public interface RequestSpec {
     URI uri();
+
     Map<String, String> headers();
 }
