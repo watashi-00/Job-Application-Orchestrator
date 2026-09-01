@@ -13,7 +13,9 @@ import com.watashi.infrastructure.http.HttpEngine;
 import com.watashi.infrastructure.http.HttpRequestSpec;
 import java.math.BigDecimal;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +31,20 @@ public class RemotiveJobSource implements JobSource {
     private static final String DEFAULT_CATEGORY = "software-dev";
     private static final String BASE_URL = "https://remotive.com/api/remote-jobs?category=";
 
-    private static final Pattern SALARY_PATTERN = Pattern.compile(
+    private static final Pattern ID_PATTERN = Pattern.compile("\"id\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
+    private static final Pattern URL_PATTERN = Pattern.compile("\"url\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
+    private static final Pattern TITLE_PATTERN = Pattern.compile("\"title\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
+    private static final Pattern COMPANY_PATTERN =
+            Pattern.compile("\"company_name\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
+    private static final Pattern DESCRIPTION_PATTERN =
+            Pattern.compile("\"description\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))", Pattern.DOTALL);
+    private static final Pattern LOCATION_PATTERN =
+            Pattern.compile("\"candidate_required_location\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
+    private static final Pattern SALARY_PATTERN = Pattern.compile("\"salary\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
+    private static final Pattern TAGS_PATTERN = Pattern.compile("\"tags\"\\s*:\\s*\\[([^\\]]*)\\]");
+    private static final Pattern TAG_ITEM_PATTERN = Pattern.compile("\"(.*?)\"");
+
+    private static final Pattern SALARY_PARSE_PATTERN = Pattern.compile(
             "\\$?\\s*([0-9]{1,3}(?:,[0-9]{3})*|\\d+)\\s*(?:-\\s*\\$?\\s*([0-9]{1,3}(?:,[0-9]{3})*|\\d+))?");
 
     private final HttpEngine httpEngine;
@@ -50,7 +65,7 @@ public class RemotiveJobSource implements JobSource {
             category = query.category();
         }
 
-        String url = BASE_URL + category;
+        String url = BASE_URL + URLEncoder.encode(category, StandardCharsets.UTF_8);
         try {
             HttpRequestSpec spec = new HttpRequestSpec(URI.create(url), Map.of());
             CompletableFuture<HttpResponse<String>> future = httpEngine.fetch(spec);
@@ -73,18 +88,18 @@ public class RemotiveJobSource implements JobSource {
         List<JobOpportunity> opportunities = new ArrayList<>();
 
         for (String objJson : objectStrings) {
-            String rawId = extractField(objJson, "id");
+            String rawId = extractField(ID_PATTERN, objJson);
             if (rawId.isBlank()) {
                 continue;
             }
 
             String jobId = rawId.startsWith("remotive-") ? rawId : "remotive-" + rawId;
-            String title = extractField(objJson, "title");
-            String company = extractField(objJson, "company_name");
-            String description = extractField(objJson, "description");
-            String location = extractField(objJson, "candidate_required_location");
-            String salaryStr = extractField(objJson, "salary");
-            String url = extractField(objJson, "url");
+            String title = extractField(TITLE_PATTERN, objJson);
+            String company = extractField(COMPANY_PATTERN, objJson);
+            String description = extractField(DESCRIPTION_PATTERN, objJson);
+            String location = extractField(LOCATION_PATTERN, objJson);
+            String salaryStr = extractField(SALARY_PATTERN, objJson);
+            String url = extractField(URL_PATTERN, objJson);
             String tagsStr = extractTagsString(objJson);
 
             String combinedTextForSkills = (title + " " + tagsStr + " " + description).trim();
@@ -178,34 +193,34 @@ public class RemotiveJobSource implements JobSource {
         return results;
     }
 
-    private static String extractField(String objJson, String fieldName) {
-        Pattern stringPattern = Pattern.compile("\"" + Pattern.quote(fieldName) + "\"\\s*:\\s*\"((?:\\\\\"|[^\"])*)\"");
-        Matcher mString = stringPattern.matcher(objJson);
-        if (mString.find()) {
-            return unescapeJson(mString.group(1));
-        }
-
-        Pattern primPattern = Pattern.compile("\"" + Pattern.quote(fieldName) + "\"\\s*:\\s*([^,\\}\\s]+)");
-        Matcher mPrim = primPattern.matcher(objJson);
-        if (mPrim.find()) {
-            String val = mPrim.group(1).trim();
-            if (val.startsWith("\"") && val.endsWith("\"") && val.length() >= 2) {
-                val = val.substring(1, val.length() - 1);
+    private static String extractField(Pattern pattern, String objJson) {
+        Matcher matcher = pattern.matcher(objJson);
+        if (matcher.find()) {
+            String val = matcher.group(1);
+            if (val == null) {
+                val = matcher.group(2);
             }
-            return unescapeJson(val);
+            if (val != null) {
+                val = val.trim();
+                if (val.startsWith("\"") && val.endsWith("\"") && val.length() >= 2) {
+                    val = val.substring(1, val.length() - 1);
+                }
+                if ("null".equalsIgnoreCase(val)) {
+                    return "";
+                }
+                return unescapeJson(val);
+            }
         }
         return "";
     }
 
     private static String extractTagsString(String objJson) {
-        Pattern tagsPattern = Pattern.compile("\"tags\"\\s*:\\s*\\[([^\\]]*)\\]");
-        Matcher matcher = tagsPattern.matcher(objJson);
+        Matcher matcher = TAGS_PATTERN.matcher(objJson);
         if (!matcher.find()) {
             return "";
         }
         String arrayContent = matcher.group(1);
-        Pattern tagItemPattern = Pattern.compile("\"((?:\\\\\"|[^\"])*)\"");
-        Matcher itemMatcher = tagItemPattern.matcher(arrayContent);
+        Matcher itemMatcher = TAG_ITEM_PATTERN.matcher(arrayContent);
 
         List<String> tags = new ArrayList<>();
         while (itemMatcher.find()) {
@@ -219,7 +234,7 @@ public class RemotiveJobSource implements JobSource {
             return null;
         }
 
-        Matcher matcher = SALARY_PATTERN.matcher(salaryStr);
+        Matcher matcher = SALARY_PARSE_PATTERN.matcher(salaryStr);
         if (!matcher.find()) {
             return null;
         }
