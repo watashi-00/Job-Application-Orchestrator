@@ -2,7 +2,9 @@ package com.watashi.runtime;
 
 import com.watashi.adapters.out.ingestor.pdf.PdfCandidateIngestor;
 import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
-import com.watashi.adapters.out.persistence.InMemoryJobRepository;
+import com.watashi.adapters.out.persistence.json.JsonCandidateProfileRepository;
+import com.watashi.adapters.out.persistence.json.JsonFilterConfigRepository;
+import com.watashi.adapters.out.persistence.json.JsonJobRepository;
 import com.watashi.core.domain.candidate.CandidatePreferences;
 import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.common.*;
@@ -13,9 +15,10 @@ import com.watashi.core.ports.out.*;
 import com.watashi.core.service.*;
 import com.watashi.infrastructure.http.HttpEngine;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.math.BigDecimal;
+import java.nio.file.Paths;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -32,21 +35,15 @@ public class Bootstrap {
         System.out.println("===============================================================");
         System.out.println("   JOB APPLICATION ORCHESTRATOR — LIVE DEMO & MATCHING TEST");
         System.out.println("===============================================================");
+        System.out.println("CWD: " + new File(".").getAbsolutePath());
 
         HttpEngine httpEngine = HttpEngine.createDefault();
         JobSource remotiveSource = new RemotiveJobSource(httpEngine);
-        JobRepository jobRepository = new InMemoryJobRepository();
-        CandidateProfileRepository candidateRepository = new CandidateProfileRepository() {
-            private CandidateProfile current;
 
-            public Optional<CandidateProfile> findDefault() {
-                return Optional.ofNullable(current);
-            }
-
-            public void save(CandidateProfile profile) {
-                this.current = profile;
-            }
-        };
+        // Persistent JSON repositories in ./data/
+        JobRepository jobRepository = new JsonJobRepository();
+        CandidateProfileRepository candidateRepository = new JsonCandidateProfileRepository();
+        FilterConfigRepository filterConfigRepository = new JsonFilterConfigRepository();
 
         CandidateProfileIngestor pdfIngestor = new PdfCandidateIngestor();
         IngestCandidateProfileUseCase ingestUseCase =
@@ -68,7 +65,7 @@ public class Bootstrap {
                 Set.of(SeniorityLevel.SENIOR, SeniorityLevel.LEAD),
                 Set.of("Remote"));
 
-        System.out.println("\n--> Ingesting candidate resume PDF using Apache PDFBox...");
+        System.out.println("\n--> Ingesting candidate resume PDF using Apache PDFBox & saving profile...");
         CandidateProfile ingestedProfile = ingestUseCase.ingestFromPdf(samplePdfBytes, preferences);
 
         System.out.println("\n[Ingested Candidate Profile]: " + ingestedProfile.title());
@@ -77,13 +74,15 @@ public class Bootstrap {
         System.out.println("  Target Seniority: " + ingestedProfile.targetSeniorities());
         System.out.println("  Preferred Work Mode: " + ingestedProfile.preferredWorkModes());
 
-        System.out.println("\n--> Fetching real remote jobs from Remotive API & evaluating compatibility...");
+        FilterConfiguration filterConfig = filterConfigRepository.load();
+        filterConfigRepository.save(filterConfig);
 
-        List<MatchResult> results =
-                discoverUseCase.discoverAndEvaluate(ingestedProfile, FilterConfiguration.defaultConfig());
+        System.out.println("\n--> Fetching real remote jobs from Remotive API, evaluating & persisting...");
+
+        List<MatchResult> results = discoverUseCase.discoverAndEvaluate(ingestedProfile, filterConfig);
 
         System.out.println("\n===============================================================");
-        System.out.println("  DISCOVERY & MATCHING RESULTS (Found " + results.size() + " jobs)");
+        System.out.println("  DISCOVERY & MATCHING RESULTS (Found " + results.size() + " jobs, persisted to disk)");
         System.out.println("===============================================================");
 
         int rank = 1;
@@ -119,7 +118,11 @@ public class Bootstrap {
         }
 
         System.out.println("\n===============================================================");
-        System.out.println("   Demo Completed Successfully.");
+        System.out.println("   Local Persistence Files Saved at:");
+        System.out.println("   - " + Paths.get("data", "jobs.json").toAbsolutePath() + " ("
+                + jobRepository.findAll().size() + " jobs)");
+        System.out.println("   - " + Paths.get("data", "profile.json").toAbsolutePath());
+        System.out.println("   - " + Paths.get("data", "filters.json").toAbsolutePath());
         System.out.println("===============================================================");
     }
 
