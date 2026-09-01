@@ -35,6 +35,8 @@ Automation of job discovery and application.
 * Search Engines
 * Multiple ATS
 * Advanced Deduplication
+* Dynamic Skill Dictionary & Synonym Alias Mapping (Configurable JSON/YAML dictionary and AI agent dynamic keyword expansion)
+
 
 ### Application
 
