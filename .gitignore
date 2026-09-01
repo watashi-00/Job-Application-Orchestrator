@@ -42,3 +42,6 @@ build/
 ### Superpowers ###
 docs/superpowers/
 .superpowers/
+
+### Local Storage ###
+data/
