@@ -42,10 +42,62 @@ public class ValueObjectsTest extends TestCase {
         } catch (IllegalArgumentException e) {
             // expected
         }
+
+        try {
+            new Skill("Java", SkillCategory.LANGUAGES_FRAMEWORKS, -1);
+            fail("Should throw IllegalArgumentException on negative yearsExperience");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
     }
 
-    public void testSalaryRangeDefaults() {
+    public void testSalaryRangeDefaultsAndValidations() {
         SalaryRange range = new SalaryRange(new BigDecimal("5000"), new BigDecimal("8000"), null);
         assertEquals("USD", range.currency());
+
+        try {
+            new SalaryRange(new BigDecimal("-1000"), new BigDecimal("5000"), "USD");
+            fail("Should throw IllegalArgumentException on negative min salary");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+
+        try {
+            new SalaryRange(new BigDecimal("1000"), new BigDecimal("-5000"), "USD");
+            fail("Should throw IllegalArgumentException on negative max salary");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+
+        try {
+            new SalaryRange(new BigDecimal("10000"), new BigDecimal("5000"), "USD");
+            fail("Should throw IllegalArgumentException when min > max salary");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+    }
+
+    public void testWorkModeEnum() {
+        assertEquals(3, WorkMode.values().length);
+        assertEquals(WorkMode.REMOTE, WorkMode.valueOf("REMOTE"));
+    }
+
+    public void testNullHandling() {
+        try {
+            SeniorityLevel.SENIOR.distanceTo(null);
+            fail("Should throw IllegalArgumentException on null SeniorityLevel in distanceTo");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+
+        Skill skill = new Skill("Java", SkillCategory.LANGUAGES_FRAMEWORKS, 5);
+        assertFalse(skill.matchesName(null));
+
+        SalaryRange range = new SalaryRange(new BigDecimal("10000"), new BigDecimal("15000"), "USD");
+        assertTrue(range.coversMinimum(null));
+
+        SalaryRange openEndedRange = new SalaryRange(new BigDecimal("10000"), null, "USD");
+        assertTrue(openEndedRange.coversMinimum(new BigDecimal("20000")));
+        assertTrue(openEndedRange.coversMinimum(null));
     }
 }

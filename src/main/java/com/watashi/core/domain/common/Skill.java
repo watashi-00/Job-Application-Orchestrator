@@ -10,6 +10,9 @@ public record Skill(String name, SkillCategory category, int yearsExperience) {
         if (category == null) {
             category = SkillCategory.OTHER;
         }
+        if (yearsExperience < 0) {
+            throw new IllegalArgumentException("Years of experience cannot be negative");
+        }
     }
 
     public String nameLower() {
