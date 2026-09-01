@@ -41,14 +41,19 @@ public class MatchingEngine {
             }
         }
 
-        double reqRatio = job.requiredSkills().isEmpty()
-                ? 1.0
-                : (double) (job.requiredSkills().size() - missingRequired.size())
-                        / job.requiredSkills().size();
+        double reqRatio;
+        if (job.requiredSkills().isEmpty()) {
+            reqRatio = matchedSkills.isEmpty() ? 0.20 : 1.0;
+        } else {
+            reqRatio = (double) (job.requiredSkills().size() - missingRequired.size())
+                    / job.requiredSkills().size();
+        }
+
         double optRatio = job.optionalSkills().isEmpty()
                 ? 1.0
                 : (double) (job.optionalSkills().size() - missingOptional.size())
                         / job.optionalSkills().size();
+
         double techScore = (reqRatio * 85.0) + (optRatio * 15.0);
 
         boolean strictFailed = false;
@@ -57,6 +62,13 @@ public class MatchingEngine {
             String missingNames =
                     missingRequired.stream().map(Skill::name).sorted().collect(Collectors.joining(", "));
             conflicts.add("Strict match failed: Missing mandatory required skill(s): " + missingNames);
+        }
+
+        // Title / Role Relevance Check
+        boolean roleMismatch = isRoleUnrelated(profile.title(), job.title());
+        if (roleMismatch) {
+            conflicts.add("Role title mismatch: Job title '" + job.title()
+                    + "' does not match candidate target domain (" + profile.title() + ")");
         }
 
         // 2. Seniority Score
@@ -125,8 +137,12 @@ public class MatchingEngine {
                 + (workModeScore * config.workModeWeight())
                 + (salaryScore * config.salaryWeight());
 
+        if (roleMismatch) {
+            overallScore *= 0.50; // Apply 50% penalty for unrelated domain roles
+        }
+
         MatchStatus status;
-        if (strictFailed || overallScore < 50.0) {
+        if (strictFailed || roleMismatch || overallScore < 50.0) {
             status = MatchStatus.REJECTED;
         } else if (overallScore >= config.minimumScoreThreshold()) {
             status = MatchStatus.RECOMMENDED;
@@ -137,5 +153,42 @@ public class MatchingEngine {
         ScoreBreakdown breakdown = new ScoreBreakdown(techScore, seniorityScore, workModeScore, salaryScore);
         return new MatchResult(
                 job.id(), overallScore, breakdown, matchedSkills, missingRequired, missingOptional, conflicts, status);
+    }
+
+    private boolean isRoleUnrelated(String candidateTitle, String jobTitle) {
+        if (candidateTitle == null || jobTitle == null) return false;
+        String candLower = candidateTitle.toLowerCase();
+        String jobLower = jobTitle.toLowerCase();
+
+        boolean candIsTech = candLower.contains("engineer")
+                || candLower.contains("developer")
+                || candLower.contains("backend")
+                || candLower.contains("frontend")
+                || candLower.contains("fullstack")
+                || candLower.contains("software")
+                || candLower.contains("qa");
+
+        if (candIsTech) {
+            boolean jobIsNonTech = jobLower.contains("marketing")
+                    || jobLower.contains("writer")
+                    || jobLower.contains("sales")
+                    || jobLower.contains("copywriter")
+                    || jobLower.contains("recruiter")
+                    || jobLower.contains("accounting")
+                    || jobLower.contains("hr")
+                    || jobLower.contains("content reviewer")
+                    || jobLower.contains("collection");
+
+            boolean jobHasTechKeyword = jobLower.contains("engineer")
+                    || jobLower.contains("developer")
+                    || jobLower.contains("software")
+                    || jobLower.contains("qa")
+                    || jobLower.contains("tech lead")
+                    || jobLower.contains("backend")
+                    || jobLower.contains("frontend");
+
+            return jobIsNonTech && !jobHasTechKeyword;
+        }
+        return false;
     }
 }
