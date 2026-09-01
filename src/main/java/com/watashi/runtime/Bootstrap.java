@@ -1,7 +1,9 @@
 package com.watashi.runtime;
 
+import com.watashi.adapters.out.ingestor.pdf.PdfCandidateIngestor;
 import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
 import com.watashi.adapters.out.persistence.InMemoryJobRepository;
+import com.watashi.core.domain.candidate.CandidatePreferences;
 import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.common.*;
 import com.watashi.core.domain.job.JobOpportunity;
@@ -10,9 +12,17 @@ import com.watashi.core.ports.in.*;
 import com.watashi.core.ports.out.*;
 import com.watashi.core.service.*;
 import com.watashi.infrastructure.http.HttpEngine;
+import java.io.ByteArrayOutputStream;
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 
 public class Bootstrap {
 
@@ -26,6 +36,21 @@ public class Bootstrap {
         HttpEngine httpEngine = HttpEngine.createDefault();
         JobSource remotiveSource = new RemotiveJobSource(httpEngine);
         JobRepository jobRepository = new InMemoryJobRepository();
+        CandidateProfileRepository candidateRepository = new CandidateProfileRepository() {
+            private CandidateProfile current;
+
+            public Optional<CandidateProfile> findDefault() {
+                return Optional.ofNullable(current);
+            }
+
+            public void save(CandidateProfile profile) {
+                this.current = profile;
+            }
+        };
+
+        CandidateProfileIngestor pdfIngestor = new PdfCandidateIngestor();
+        IngestCandidateProfileUseCase ingestUseCase =
+                new DefaultIngestCandidateProfileService(pdfIngestor, candidateRepository);
 
         MatchingEngine matchingEngine = new MatchingEngine();
         AssessJobCompatibilityUseCase assessUseCase = new DefaultAssessJobCompatibilityService(matchingEngine);
@@ -33,32 +58,29 @@ public class Bootstrap {
         DiscoverJobsUseCase discoverUseCase =
                 new DefaultDiscoverJobsService(List.of(remotiveSource), assessUseCase, jobRepository);
 
-        // Define a candidate profile
-        CandidateProfile sampleProfile = new CandidateProfile(
-                "cand-demo",
-                "Senior Backend Engineer",
-                "Experienced Java & Cloud Engineer",
-                Set.of(
-                        new Skill("Java", SkillCategory.LANGUAGES_FRAMEWORKS, 5),
-                        new Skill("Spring Boot", SkillCategory.LANGUAGES_FRAMEWORKS, 4),
-                        new Skill("Docker", SkillCategory.DEVOPS_CLOUD, 3),
-                        new Skill("PostgreSQL", SkillCategory.DATABASE, 4),
-                        new Skill("REST", SkillCategory.ARCHITECTURE_DESIGN, 5)),
-                Set.of(SeniorityLevel.SENIOR, SeniorityLevel.LEAD),
+        // Generate sample PDF resume in memory
+        byte[] samplePdfBytes = generateSampleResumePdf();
+
+        // Supplementary candidate preferences
+        CandidatePreferences preferences = new CandidatePreferences(
+                new SalaryRange(new BigDecimal("10000"), new BigDecimal("20000"), "USD"),
                 Set.of(WorkMode.REMOTE),
-                null,
+                Set.of(SeniorityLevel.SENIOR, SeniorityLevel.LEAD),
                 Set.of("Remote"));
 
-        System.out.println("\n[Candidate Profile]: " + sampleProfile.title());
-        System.out.println(
-                "  Skills: " + sampleProfile.skills().stream().map(Skill::name).collect(Collectors.joining(", ")));
-        System.out.println("  Target Seniority: " + sampleProfile.targetSeniorities());
-        System.out.println("  Preferred Work Mode: " + sampleProfile.preferredWorkModes());
+        System.out.println("\n--> Ingesting candidate resume PDF using Apache PDFBox...");
+        CandidateProfile ingestedProfile = ingestUseCase.ingestFromPdf(samplePdfBytes, preferences);
+
+        System.out.println("\n[Ingested Candidate Profile]: " + ingestedProfile.title());
+        System.out.println("  Extracted Skills from PDF: "
+                + ingestedProfile.skills().stream().map(Skill::name).collect(Collectors.joining(", ")));
+        System.out.println("  Target Seniority: " + ingestedProfile.targetSeniorities());
+        System.out.println("  Preferred Work Mode: " + ingestedProfile.preferredWorkModes());
 
         System.out.println("\n--> Fetching real remote jobs from Remotive API & evaluating compatibility...");
 
         List<MatchResult> results =
-                discoverUseCase.discoverAndEvaluate(sampleProfile, FilterConfiguration.defaultConfig());
+                discoverUseCase.discoverAndEvaluate(ingestedProfile, FilterConfiguration.defaultConfig());
 
         System.out.println("\n===============================================================");
         System.out.println("  DISCOVERY & MATCHING RESULTS (Found " + results.size() + " jobs)");
@@ -99,5 +121,30 @@ public class Bootstrap {
         System.out.println("\n===============================================================");
         System.out.println("   Demo Completed Successfully.");
         System.out.println("===============================================================");
+    }
+
+    private static byte[] generateSampleResumePdf() {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        try (PDDocument doc = new PDDocument()) {
+            PDPage page = new PDPage();
+            doc.addPage(page);
+            try (PDPageContentStream stream = new PDPageContentStream(doc, page)) {
+                stream.beginText();
+                stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 14);
+                stream.newLineAtOffset(50, 700);
+                stream.showText("Senior Backend Engineer");
+                stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 11);
+                stream.newLineAtOffset(0, -25);
+                stream.showText(
+                        "Passionate Backend Software Engineer with 6+ years of experience building distributed systems.");
+                stream.newLineAtOffset(0, -20);
+                stream.showText("Core Tech: Java, Spring Boot, PostgreSQL, Docker, REST APIs, Microservices, AWS.");
+                stream.endText();
+            }
+            doc.save(baos);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate sample PDF: " + e.getMessage(), e);
+        }
+        return baos.toByteArray();
     }
 }
