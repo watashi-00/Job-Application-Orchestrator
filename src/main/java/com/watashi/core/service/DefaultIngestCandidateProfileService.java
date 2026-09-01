@@ -6,6 +6,7 @@ import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
 import com.watashi.core.ports.out.CandidateProfileIngestor;
 import com.watashi.core.ports.out.CandidateProfileRepository;
 import java.util.Objects;
+import java.util.Set;
 
 public class DefaultIngestCandidateProfileService implements IngestCandidateProfileUseCase {
 
@@ -20,7 +21,10 @@ public class DefaultIngestCandidateProfileService implements IngestCandidateProf
 
     @Override
     public CandidateProfile ingestFromPdf(byte[] pdfBytes, CandidatePreferences preferences) {
-        CandidateProfile profile = ingestor.ingest(pdfBytes, preferences);
+        Objects.requireNonNull(pdfBytes, "pdfBytes cannot be null");
+        CandidatePreferences effectivePreferences =
+                preferences != null ? preferences : new CandidatePreferences(null, Set.of(), Set.of(), Set.of());
+        CandidateProfile profile = ingestor.ingest(pdfBytes, effectivePreferences);
         repository.save(profile);
         return profile;
     }
