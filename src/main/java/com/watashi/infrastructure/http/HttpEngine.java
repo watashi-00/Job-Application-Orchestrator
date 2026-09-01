@@ -18,6 +18,10 @@ public class HttpEngine {
         return INSTANCE;
     }
 
+    public static HttpEngine createDefault() {
+        return INSTANCE;
+    }
+
     /*
     The HTTP engine is stateless with respect to individual requests.
     Request-specific configuration is supplied through immutable request parameters,
