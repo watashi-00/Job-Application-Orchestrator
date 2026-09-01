@@ -54,7 +54,8 @@ public class MatchingEngine {
         boolean strictFailed = false;
         if (config.strictRequiredSkills() && !missingRequired.isEmpty()) {
             strictFailed = true;
-            String missingNames = missingRequired.stream().map(Skill::name).collect(Collectors.joining(", "));
+            String missingNames =
+                    missingRequired.stream().map(Skill::name).sorted().collect(Collectors.joining(", "));
             conflicts.add("Strict match failed: Missing mandatory required skill(s): " + missingNames);
         }
 
@@ -67,6 +68,7 @@ public class MatchingEngine {
                 seniorityScore = 100.0;
             } else {
                 int minDistance = profile.targetSeniorities().stream()
+                        .filter(Objects::nonNull)
                         .mapToInt(s -> s.distanceTo(job.seniorityLevel()))
                         .min()
                         .orElse(99);
@@ -89,9 +91,10 @@ public class MatchingEngine {
                 && !profile.preferredWorkModes().isEmpty()) {
             if (profile.preferredWorkModes().contains(job.workMode())) {
                 workModeScore = 100.0;
-            } else if (profile.preferredWorkModes().contains(WorkMode.REMOTE) && job.workMode() == WorkMode.ONSITE) {
+            } else if (profile.preferredWorkModes().equals(Set.of(WorkMode.REMOTE))
+                    && job.workMode() == WorkMode.ONSITE) {
                 workModeScore = 0.0;
-                conflicts.add("Work mode conflict: Job requires ONSITE but candidate prefers REMOTE");
+                conflicts.add("Work mode conflict: Job requires ONSITE but candidate only accepts REMOTE");
             } else {
                 workModeScore = 50.0;
             }
@@ -100,7 +103,17 @@ public class MatchingEngine {
         // 4. Salary Score
         double salaryScore = 100.0;
         if (job.salaryRange() != null && profile.desiredSalary() != null) {
-            if (!job.salaryRange().coversMinimum(profile.desiredSalary().min())) {
+            if (job.salaryRange().currency() != null
+                    && profile.desiredSalary().currency() != null
+                    && !job.salaryRange()
+                            .currency()
+                            .equals(profile.desiredSalary().currency())) {
+                conflicts.add("Currency mismatch: Job salary currency ("
+                        + job.salaryRange().currency()
+                        + ") does not match candidate expectation ("
+                        + profile.desiredSalary().currency()
+                        + ")");
+            } else if (!job.salaryRange().coversMinimum(profile.desiredSalary().min())) {
                 salaryScore = 40.0;
                 conflicts.add("Salary expectation conflict: Job salary offer is below candidate minimum requirement");
             }
