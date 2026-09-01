@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Objects;
 
 public class JsonFilterConfigRepository implements FilterConfigRepository {
@@ -15,7 +14,7 @@ public class JsonFilterConfigRepository implements FilterConfigRepository {
     private FilterConfiguration current;
 
     public JsonFilterConfigRepository() {
-        this(Paths.get("data", "filters.json"));
+        this(DataDirectoryResolver.resolveFilePath("filters.json"));
     }
 
     public JsonFilterConfigRepository(Path filePath) {
@@ -23,7 +22,7 @@ public class JsonFilterConfigRepository implements FilterConfigRepository {
         loadFromFile();
     }
 
-    private void loadFromFile() {
+    private synchronized void loadFromFile() {
         if (!Files.exists(filePath)) {
             this.current = FilterConfiguration.defaultConfig();
             return;
@@ -33,10 +32,10 @@ public class JsonFilterConfigRepository implements FilterConfigRepository {
                 this.current = FilterConfiguration.defaultConfig();
                 return;
             }
-            FilterConfiguration loaded = JsonStorageUtils.readJson(filePath, FilterConfiguration.class);
-            this.current = loaded != null ? loaded : FilterConfiguration.defaultConfig();
+            FilterConfiguration config = JsonStorageUtils.readJson(filePath, FilterConfiguration.class);
+            this.current = config != null ? config : FilterConfiguration.defaultConfig();
         } catch (IOException e) {
-            throw new UncheckedIOException("Failed to load filter config from " + filePath, e);
+            this.current = FilterConfiguration.defaultConfig();
         }
     }
 
@@ -47,12 +46,12 @@ public class JsonFilterConfigRepository implements FilterConfigRepository {
 
     @Override
     public synchronized void save(FilterConfiguration config) {
-        this.current = config;
         if (config != null) {
+            this.current = config;
             try {
                 JsonStorageUtils.writeJsonAtomic(filePath, config);
             } catch (IOException e) {
-                throw new UncheckedIOException("Failed to write filter config to " + filePath, e);
+                throw new UncheckedIOException("Failed to save filter configuration to " + filePath, e);
             }
         }
     }

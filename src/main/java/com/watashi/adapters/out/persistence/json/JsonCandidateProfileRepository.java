@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -16,7 +15,7 @@ public class JsonCandidateProfileRepository implements CandidateProfileRepositor
     private CandidateProfile current;
 
     public JsonCandidateProfileRepository() {
-        this(Paths.get("data", "profile.json"));
+        this(DataDirectoryResolver.resolveFilePath("profile.json"));
     }
 
     public JsonCandidateProfileRepository(Path filePath) {
@@ -24,7 +23,7 @@ public class JsonCandidateProfileRepository implements CandidateProfileRepositor
         loadFromFile();
     }
 
-    private void loadFromFile() {
+    private synchronized void loadFromFile() {
         if (!Files.exists(filePath)) {
             return;
         }
@@ -45,12 +44,12 @@ public class JsonCandidateProfileRepository implements CandidateProfileRepositor
 
     @Override
     public synchronized void save(CandidateProfile profile) {
-        this.current = profile;
         if (profile != null) {
+            this.current = profile;
             try {
                 JsonStorageUtils.writeJsonAtomic(filePath, profile);
             } catch (IOException e) {
-                throw new UncheckedIOException("Failed to write candidate profile to " + filePath, e);
+                throw new UncheckedIOException("Failed to save candidate profile to " + filePath, e);
             }
         }
     }
