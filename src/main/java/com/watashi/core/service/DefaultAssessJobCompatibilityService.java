@@ -1,10 +1,11 @@
-package com.watashi.core.ports.in;
+package com.watashi.core.service;
 
 import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.job.JobOpportunity;
 import com.watashi.core.domain.matching.FilterConfiguration;
 import com.watashi.core.domain.matching.MatchResult;
 import com.watashi.core.domain.matching.MatchingEngine;
+import com.watashi.core.ports.in.AssessJobCompatibilityUseCase;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
