@@ -22,6 +22,7 @@ import com.watashi.core.domain.matching.MatchResult;
 import com.watashi.core.domain.matching.MatchingEngine;
 import com.watashi.core.ports.in.AssessJobCompatibilityUseCase;
 import com.watashi.core.ports.in.DiscoverJobsUseCase;
+import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
 import com.watashi.core.ports.out.CandidateProfileIngestor;
@@ -31,6 +32,7 @@ import com.watashi.core.ports.out.JobRepository;
 import com.watashi.core.ports.out.JobSource;
 import com.watashi.core.ports.out.SkillDictionaryRepository;
 import com.watashi.core.service.DefaultAssessJobCompatibilityService;
+import com.watashi.core.service.DefaultCoverLetterService;
 import com.watashi.core.service.DefaultDiscoverJobsService;
 import com.watashi.core.service.DefaultIngestCandidateProfileService;
 import com.watashi.infrastructure.http.HttpEngine;
@@ -147,6 +149,7 @@ public class Bootstrap {
         System.out.println("===============================================================");
 
         GetJobsUseCase getJobsUseCase = jobRepository::findAll;
+        GenerateCoverLetterUseCase coverLetterService = new DefaultCoverLetterService();
         DashboardHttpServer server = new DashboardHttpServer(
                 8080,
                 discoverUseCase,
@@ -155,7 +158,8 @@ public class Bootstrap {
                 filterConfigRepository,
                 jobRepository,
                 getJobsUseCase,
-                ingestUseCase);
+                ingestUseCase,
+                coverLetterService);
         server.start();
         System.out.println("🌐 Web Dashboard live at http://localhost:8080");
     }

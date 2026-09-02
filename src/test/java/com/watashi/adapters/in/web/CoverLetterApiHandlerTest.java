@@ -103,7 +103,9 @@ public class CoverLetterApiHandlerTest extends TestCase {
     }
 
     public void testMissingJobIdReturns400() throws Exception {
-        DashboardHttpServer server = new DashboardHttpServer(18084);
+        GenerateCoverLetterUseCase coverLetterUseCase = new DefaultCoverLetterService();
+        DashboardHttpServer server = new DashboardHttpServer(
+                18084, null, null, (ManageCandidateProfileUseCase) null, null, null, null, coverLetterUseCase);
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();
@@ -113,7 +115,7 @@ public class CoverLetterApiHandlerTest extends TestCase {
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
-            assertEquals(501, response.statusCode());
+            assertEquals(400, response.statusCode());
         } finally {
             server.stop();
         }

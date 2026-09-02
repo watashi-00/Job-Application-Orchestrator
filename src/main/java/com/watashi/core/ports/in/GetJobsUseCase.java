@@ -6,4 +6,8 @@ import java.util.List;
 @FunctionalInterface
 public interface GetJobsUseCase {
     List<JobOpportunity> getJobs();
+
+    default List<JobOpportunity> getAllJobs() {
+        return getJobs();
+    }
 }

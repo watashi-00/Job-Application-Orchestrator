@@ -457,7 +457,59 @@ public class IndexHtmlHandler implements HttpHandler {
                         <div class="detail-desc">${escapeHtml(job.description || 'No description available.')}</div>
 
                         ${job.sourceUrl ? `<a class="detail-link" href="${escapeHtml(job.sourceUrl)}" target="_blank">View Original Post ↗</a>` : ''}
+
+                        <button id="btn-generate-coverletter" class="btn-action" style="width: 100%; margin-top: 12px; justify-content: center;" onclick="generateCoverLetter('${escapeHtml(job.id)}')">
+                            <span>📝 Generate Cover Letter</span>
+                        </button>
+
+                        <div id="coverletter-container" style="display: none; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
+                            <div class="section-label">Cover Letter</div>
+                            <textarea id="coverletter-text" style="width: 100%; height: 160px; font-family: inherit; font-size: 12px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: vertical; margin-bottom: 8px;" readonly></textarea>
+                            <button id="btn-copy-coverletter" class="btn-action" style="width: 100%; justify-content: center;" onclick="copyCoverLetter()">
+                                <span>📋 Copy Cover Letter</span>
+                            </button>
+                        </div>
                     `;
+                }
+
+                async function generateCoverLetter(jobId) {
+                    const btn = document.getElementById('btn-generate-coverletter');
+                    const container = document.getElementById('coverletter-container');
+                    const textarea = document.getElementById('coverletter-text');
+                    if (!btn) return;
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<span>Generating...</span>';
+                    try {
+                        const res = await fetch('/api/cover-letter?jobId=' + encodeURIComponent(jobId));
+                        if (!res.ok) {
+                            throw new Error('Failed to generate cover letter (status ' + res.status + ')');
+                        }
+                        const data = await res.json();
+                        textarea.value = data.coverLetter || '';
+                        container.style.display = 'block';
+                    } catch (err) {
+                        alert('Error generating cover letter: ' + err.message);
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    }
+                }
+
+                async function copyCoverLetter() {
+                    const textarea = document.getElementById('coverletter-text');
+                    const btn = document.getElementById('btn-copy-coverletter');
+                    if (!textarea || !textarea.value) return;
+                    try {
+                        await navigator.clipboard.writeText(textarea.value);
+                        if (btn) {
+                            const originalText = btn.innerHTML;
+                            btn.innerHTML = '<span>✅ Copied!</span>';
+                            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+                        }
+                    } catch (err) {
+                        alert('Failed to copy text: ' + err.message);
+                    }
                 }
 
                 function setStatusFilter(filter, btn) {
