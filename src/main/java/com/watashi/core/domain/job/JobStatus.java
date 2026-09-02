@@ -4,6 +4,8 @@ public enum JobStatus {
     DISCOVERED,
     EVALUATED,
     APPLIED,
+    IGNORED,
+    DELETED,
     INTERVIEWING,
     REJECTED,
     OFFER
