@@ -144,7 +144,8 @@ public class Bootstrap {
                 candidateRepository,
                 filterConfigRepository,
                 jobRepository,
-                getJobsUseCase);
+                getJobsUseCase,
+                ingestUseCase);
         server.start();
         System.out.println("🌐 Web Dashboard live at http://localhost:8080");
     }

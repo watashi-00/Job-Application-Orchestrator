@@ -22,6 +22,8 @@ public class IndexHtmlHandlerTest extends TestCase {
             assertEquals(200, response.statusCode());
             assertTrue(response.body().contains("JOB APPLICATION ORCHESTRATOR"));
             assertTrue(response.body().contains("DASHBOARD"));
+            assertTrue(response.body().contains("Upload Resume PDF"));
+            assertTrue(response.body().contains("pdf-file-input"));
         } finally {
             server.stop();
         }

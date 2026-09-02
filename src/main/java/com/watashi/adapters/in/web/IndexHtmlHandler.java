@@ -229,6 +229,10 @@ public class IndexHtmlHandler implements HttpHandler {
                     <div class="panel-content" id="profile-panel">
                         <div class="profile-sub">Loading profile...</div>
                     </div>
+                    <div style="padding: 0 16px 16px 16px;">
+                        <input type="file" id="pdf-file-input" accept=".pdf" style="display:none;" onchange="uploadPdfFile(this)" />
+                        <button id="btn-upload-pdf" class="btn-action" style="width: 100%; margin-top: 12px; justify-content: center;" onclick="document.getElementById('pdf-file-input').click()"><span>📄 Upload Resume PDF</span></button>
+                    </div>
                 </div>
 
                 <!-- Column 2: Job Feed & Controls (1fr) -->
@@ -483,6 +487,38 @@ public class IndexHtmlHandler implements HttpHandler {
                     } finally {
                         btn.disabled = false;
                         btn.innerHTML = '<span>Discover Jobs</span>';
+                    }
+                }
+
+                async function uploadPdfFile(input) {
+                    if (!input.files || input.files.length === 0) return;
+                    const file = input.files[0];
+                    const btn = document.getElementById('btn-upload-pdf');
+                    const originalText = btn ? btn.innerHTML : '';
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerHTML = '<span>Uploading...</span>';
+                    }
+                    try {
+                        const buffer = await file.arrayBuffer();
+                        const res = await fetch('/api/profile', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/pdf' },
+                            body: buffer
+                        });
+                        if (!res.ok) {
+                            throw new Error('Upload failed with status ' + res.status);
+                        }
+                        await loadProfile();
+                        await loadJobs();
+                    } catch (err) {
+                        alert('Failed to upload PDF: ' + err.message);
+                    } finally {
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.innerHTML = originalText;
+                        }
+                        input.value = '';
                     }
                 }
 
