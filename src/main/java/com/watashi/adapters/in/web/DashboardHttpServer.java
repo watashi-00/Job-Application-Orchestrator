@@ -13,7 +13,6 @@ import com.watashi.core.ports.in.ManageFilterConfigUseCase;
 import com.watashi.core.ports.out.CandidateProfileRepository;
 import com.watashi.core.ports.out.FilterConfigRepository;
 import com.watashi.core.ports.out.JobRepository;
-import com.watashi.core.service.DefaultCoverLetterService;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -240,12 +239,10 @@ public class DashboardHttpServer {
                     "/api/jobs",
                     new JobApiHandler(discoverUseCase, assessUseCase, profileUseCase, filterUseCase, getJobsUseCase));
             this.server.createContext("/api/profile", new ProfileApiHandler(profileUseCase, ingestUseCase));
-            GenerateCoverLetterUseCase activeCoverLetterUseCase =
-                    coverLetterUseCase != null ? coverLetterUseCase : new DefaultCoverLetterService();
             this.server.createContext(
                     "/api/cover-letter",
                     new CoverLetterApiHandler(
-                            activeCoverLetterUseCase, assessUseCase, profileUseCase, filterUseCase, getJobsUseCase));
+                            coverLetterUseCase, assessUseCase, profileUseCase, filterUseCase, getJobsUseCase));
             this.executor = Executors.newFixedThreadPool(4);
             this.server.setExecutor(this.executor);
         } catch (IOException e) {

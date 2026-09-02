@@ -14,7 +14,6 @@ import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.ManageCandidateProfileUseCase;
 import com.watashi.core.ports.in.ManageFilterConfigUseCase;
-import com.watashi.core.ports.out.JobRepository;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URLDecoder;
@@ -30,30 +29,18 @@ public class CoverLetterApiHandler implements HttpHandler {
     private final ManageCandidateProfileUseCase profileUseCase;
     private final ManageFilterConfigUseCase filterUseCase;
     private final GetJobsUseCase getJobsUseCase;
-    private final JobRepository jobRepository;
 
     public CoverLetterApiHandler(
             GenerateCoverLetterUseCase coverLetterUseCase,
             AssessJobCompatibilityUseCase assessUseCase,
             ManageCandidateProfileUseCase profileUseCase,
             ManageFilterConfigUseCase filterUseCase,
-            GetJobsUseCase getJobsUseCase,
-            JobRepository jobRepository) {
+            GetJobsUseCase getJobsUseCase) {
         this.coverLetterUseCase = coverLetterUseCase;
         this.assessUseCase = assessUseCase;
         this.profileUseCase = profileUseCase;
         this.filterUseCase = filterUseCase;
         this.getJobsUseCase = getJobsUseCase;
-        this.jobRepository = jobRepository;
-    }
-
-    public CoverLetterApiHandler(
-            GenerateCoverLetterUseCase coverLetterUseCase,
-            AssessJobCompatibilityUseCase assessUseCase,
-            ManageCandidateProfileUseCase profileUseCase,
-            ManageFilterConfigUseCase filterUseCase,
-            GetJobsUseCase getJobsUseCase) {
-        this(coverLetterUseCase, assessUseCase, profileUseCase, filterUseCase, getJobsUseCase, null);
     }
 
     public CoverLetterApiHandler(
@@ -61,40 +48,11 @@ public class CoverLetterApiHandler implements HttpHandler {
             AssessJobCompatibilityUseCase assessUseCase,
             ManageCandidateProfileUseCase profileUseCase,
             GetJobsUseCase getJobsUseCase) {
-        this(coverLetterUseCase, assessUseCase, profileUseCase, null, getJobsUseCase, null);
-    }
-
-    public CoverLetterApiHandler(
-            GenerateCoverLetterUseCase coverLetterUseCase,
-            AssessJobCompatibilityUseCase assessUseCase,
-            ManageCandidateProfileUseCase profileUseCase,
-            ManageFilterConfigUseCase filterUseCase,
-            JobRepository jobRepository) {
-        this(
-                coverLetterUseCase,
-                assessUseCase,
-                profileUseCase,
-                filterUseCase,
-                jobRepository != null ? jobRepository::findAll : null,
-                jobRepository);
-    }
-
-    public CoverLetterApiHandler(
-            GenerateCoverLetterUseCase coverLetterUseCase,
-            AssessJobCompatibilityUseCase assessUseCase,
-            ManageCandidateProfileUseCase profileUseCase,
-            JobRepository jobRepository) {
-        this(
-                coverLetterUseCase,
-                assessUseCase,
-                profileUseCase,
-                null,
-                jobRepository != null ? jobRepository::findAll : null,
-                jobRepository);
+        this(coverLetterUseCase, assessUseCase, profileUseCase, null, getJobsUseCase);
     }
 
     public CoverLetterApiHandler(GenerateCoverLetterUseCase coverLetterUseCase) {
-        this(coverLetterUseCase, null, null, null, (GetJobsUseCase) null, null);
+        this(coverLetterUseCase, null, null, null, (GetJobsUseCase) null);
     }
 
     @Override
@@ -103,7 +61,7 @@ public class CoverLetterApiHandler implements HttpHandler {
 
         if ("OPTIONS".equalsIgnoreCase(method)) {
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-            exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, OPTIONS");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
             exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type");
             exchange.sendResponseHeaders(204, -1);
             exchange.close();
@@ -113,6 +71,13 @@ public class CoverLetterApiHandler implements HttpHandler {
         if (!"GET".equalsIgnoreCase(method)) {
             exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
             exchange.sendResponseHeaders(405, -1);
+            exchange.close();
+            return;
+        }
+
+        if (coverLetterUseCase == null) {
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(501, -1);
             exchange.close();
             return;
         }
@@ -147,13 +112,6 @@ public class CoverLetterApiHandler implements HttpHandler {
                 filterUseCase != null ? filterUseCase.getConfig() : FilterConfiguration.defaultConfig();
         MatchResult match = assessUseCase != null ? assessUseCase.evaluate(job, profile, config) : null;
 
-        if (coverLetterUseCase == null) {
-            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
-            exchange.sendResponseHeaders(500, -1);
-            exchange.close();
-            return;
-        }
-
         CoverLetterResult result = coverLetterUseCase.generateCoverLetter(job, profile, match);
 
         byte[] responseBytes = MAPPER.writeValueAsString(result).getBytes(StandardCharsets.UTF_8);
@@ -168,15 +126,9 @@ public class CoverLetterApiHandler implements HttpHandler {
     }
 
     private Optional<JobOpportunity> findJob(String jobId) {
-        if (jobRepository != null) {
-            Optional<JobOpportunity> jobOpt = jobRepository.findById(jobId);
-            if (jobOpt.isPresent()) {
-                return jobOpt;
-            }
-        }
         if (getJobsUseCase != null) {
-            return getJobsUseCase.getJobs().stream()
-                    .filter(j -> j != null && jobId.equals(j.id()))
+            return getJobsUseCase.getAllJobs().stream()
+                    .filter(j -> j.id().equals(jobId))
                     .findFirst();
         }
         return Optional.empty();
