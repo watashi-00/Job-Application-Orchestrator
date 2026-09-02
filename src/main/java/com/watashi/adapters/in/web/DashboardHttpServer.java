@@ -25,13 +25,40 @@ public class DashboardHttpServer {
     private HttpServer server;
     private ExecutorService executor;
 
+    public DashboardHttpServer(int port) {
+        this(port, null, null, (ManageCandidateProfileUseCase) null, (GetJobsUseCase) null);
+    }
+
     public DashboardHttpServer(
             int port,
             DiscoverJobsUseCase discoverUseCase,
             AssessJobCompatibilityUseCase assessUseCase,
             ManageCandidateProfileUseCase profileUseCase,
             GetJobsUseCase getJobsUseCase) {
-        this(port, discoverUseCase, assessUseCase, (Object) profileUseCase, null, null, (Object) getJobsUseCase);
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                profileUseCase,
+                (ManageFilterConfigUseCase) null,
+                getJobsUseCase,
+                null);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
+            IngestCandidateProfileUseCase ingestUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                profileUseCase,
+                (ManageFilterConfigUseCase) null,
+                null,
+                ingestUseCase);
     }
 
     public DashboardHttpServer(
@@ -41,7 +68,14 @@ public class DashboardHttpServer {
             ManageCandidateProfileUseCase profileUseCase,
             GetJobsUseCase getJobsUseCase,
             IngestCandidateProfileUseCase ingestUseCase) {
-        this(port, discoverUseCase, assessUseCase, (Object) profileUseCase, null, null, (Object) ingestUseCase);
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                profileUseCase,
+                (ManageFilterConfigUseCase) null,
+                getJobsUseCase,
+                ingestUseCase);
     }
 
     public DashboardHttpServer(
@@ -51,62 +85,78 @@ public class DashboardHttpServer {
             CandidateProfileRepository profileRepository,
             FilterConfigRepository filterRepository,
             JobRepository jobRepository) {
-        this(port, discoverUseCase, assessUseCase, (Object) profileRepository, filterRepository, jobRepository, (Object)
-                toGetJobsUseCase(jobRepository));
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                toProfileUseCase(profileRepository),
+                toFilterUseCase(filterRepository),
+                toGetJobsUseCase(jobRepository),
+                null);
     }
 
     public DashboardHttpServer(
             int port,
             DiscoverJobsUseCase discoverUseCase,
             AssessJobCompatibilityUseCase assessUseCase,
-            Object profileSource,
+            CandidateProfileRepository profileRepository,
             FilterConfigRepository filterRepository,
             JobRepository jobRepository,
-            Object lastArg) {
-        ManageCandidateProfileUseCase profileUseCase = null;
-        if (profileSource instanceof ManageCandidateProfileUseCase m) {
-            profileUseCase = m;
-        } else if (profileSource instanceof CandidateProfileRepository repo) {
-            profileUseCase = new ManageCandidateProfileUseCase() {
-                @Override
-                public Optional<CandidateProfile> getProfile() {
-                    return repo.findDefault();
-                }
+            GetJobsUseCase getJobsUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                toProfileUseCase(profileRepository),
+                toFilterUseCase(filterRepository),
+                getJobsUseCase != null ? getJobsUseCase : toGetJobsUseCase(jobRepository),
+                null);
+    }
 
-                @Override
-                public void updateProfile(CandidateProfile profile) {
-                    repo.save(profile);
-                }
-            };
-        }
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            CandidateProfileRepository profileRepository,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            IngestCandidateProfileUseCase ingestUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                toProfileUseCase(profileRepository),
+                toFilterUseCase(filterRepository),
+                toGetJobsUseCase(jobRepository),
+                ingestUseCase);
+    }
 
-        ManageFilterConfigUseCase filterUseCase = filterRepository != null
-                ? new ManageFilterConfigUseCase() {
-                    @Override
-                    public FilterConfiguration getConfig() {
-                        return filterRepository.load();
-                    }
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            IngestCandidateProfileUseCase ingestUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                profileUseCase,
+                toFilterUseCase(filterRepository),
+                toGetJobsUseCase(jobRepository),
+                ingestUseCase);
+    }
 
-                    @Override
-                    public void updateConfig(FilterConfiguration config) {
-                        filterRepository.save(config);
-                    }
-                }
-                : null;
-
-        GetJobsUseCase getJobsUseCase = null;
-        IngestCandidateProfileUseCase ingestUseCase = null;
-
-        if (lastArg instanceof GetJobsUseCase g) {
-            getJobsUseCase = g;
-        } else if (lastArg instanceof IngestCandidateProfileUseCase i) {
-            ingestUseCase = i;
-        }
-
-        if (getJobsUseCase == null && jobRepository != null) {
-            getJobsUseCase = jobRepository::findAll;
-        }
-
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
+            ManageFilterConfigUseCase filterUseCase,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase) {
         this.port = port;
         try {
             this.server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -121,6 +171,38 @@ public class DashboardHttpServer {
             throw new RuntimeException(
                     "Failed to initialize Dashboard HTTP Server on port " + port + ": " + e.getMessage(), e);
         }
+    }
+
+    private static ManageCandidateProfileUseCase toProfileUseCase(CandidateProfileRepository profileRepository) {
+        return profileRepository != null
+                ? new ManageCandidateProfileUseCase() {
+                    @Override
+                    public Optional<CandidateProfile> getProfile() {
+                        return profileRepository.findDefault();
+                    }
+
+                    @Override
+                    public void updateProfile(CandidateProfile profile) {
+                        profileRepository.save(profile);
+                    }
+                }
+                : null;
+    }
+
+    private static ManageFilterConfigUseCase toFilterUseCase(FilterConfigRepository filterRepository) {
+        return filterRepository != null
+                ? new ManageFilterConfigUseCase() {
+                    @Override
+                    public FilterConfiguration getConfig() {
+                        return filterRepository.load();
+                    }
+
+                    @Override
+                    public void updateConfig(FilterConfiguration config) {
+                        filterRepository.save(config);
+                    }
+                }
+                : null;
     }
 
     private static GetJobsUseCase toGetJobsUseCase(JobRepository repository) {

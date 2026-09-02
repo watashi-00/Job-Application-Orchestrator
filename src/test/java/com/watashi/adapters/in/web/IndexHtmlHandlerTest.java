@@ -9,7 +9,7 @@ import junit.framework.TestCase;
 public class IndexHtmlHandlerTest extends TestCase {
 
     public void testIndexHtmlResponse() throws Exception {
-        DashboardHttpServer server = new DashboardHttpServer(18081, null, null, null, null, null, null);
+        DashboardHttpServer server = new DashboardHttpServer(18081);
         server.start();
         try {
             HttpClient client = HttpClient.newHttpClient();

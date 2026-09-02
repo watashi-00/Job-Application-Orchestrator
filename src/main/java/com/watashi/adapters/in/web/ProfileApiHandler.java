@@ -15,6 +15,8 @@ import java.util.Optional;
 
 public class ProfileApiHandler implements HttpHandler {
 
+    public static final int MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024;
+
     private static final ObjectMapper MAPPER = JsonStorageUtils.createObjectMapper();
 
     private final ManageCandidateProfileUseCase profileUseCase;
@@ -69,8 +71,21 @@ public class ProfileApiHandler implements HttpHandler {
         }
 
         if ("POST".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            if (ingestUseCase == null) {
+                exchange.sendResponseHeaders(501, -1);
+                exchange.close();
+                return;
+            }
+
             byte[] pdfBytes = exchange.getRequestBody().readAllBytes();
-            if (pdfBytes.length > 0 && ingestUseCase != null) {
+            if (pdfBytes.length == 0 || pdfBytes.length > MAX_PDF_SIZE_BYTES) {
+                exchange.sendResponseHeaders(400, -1);
+                exchange.close();
+                return;
+            }
+
+            try {
                 CandidateProfile updatedProfile = ingestUseCase.ingestFromPdf(pdfBytes, null);
                 if (updatedProfile != null) {
                     if (profileUseCase != null) {
@@ -79,15 +94,18 @@ public class ProfileApiHandler implements HttpHandler {
                     byte[] responseBytes =
                             MAPPER.writeValueAsString(updatedProfile).getBytes(StandardCharsets.UTF_8);
                     exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
-                    exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
                     exchange.sendResponseHeaders(200, responseBytes.length);
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(responseBytes);
                     }
                     return;
                 }
+            } catch (Exception e) {
+                exchange.sendResponseHeaders(400, -1);
+                exchange.close();
+                return;
             }
-            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+
             exchange.sendResponseHeaders(400, -1);
             exchange.close();
             return;
