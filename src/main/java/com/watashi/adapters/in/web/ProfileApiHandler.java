@@ -1,29 +1,75 @@
 package com.watashi.adapters.in.web;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.watashi.adapters.out.persistence.json.JsonStorageUtils;
 import com.watashi.core.domain.candidate.CandidateProfile;
+import com.watashi.core.ports.in.ManageCandidateProfileUseCase;
 import com.watashi.core.ports.out.CandidateProfileRepository;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 
 public class ProfileApiHandler implements HttpHandler {
 
-    private final CandidateProfileRepository profileRepository;
+    private static final ObjectMapper MAPPER = JsonStorageUtils.createObjectMapper();
+
+    private final ManageCandidateProfileUseCase profileUseCase;
+
+    public ProfileApiHandler(ManageCandidateProfileUseCase profileUseCase) {
+        this.profileUseCase = profileUseCase;
+    }
 
     public ProfileApiHandler(CandidateProfileRepository profileRepository) {
-        this.profileRepository = profileRepository;
+        this(
+                profileRepository != null
+                        ? new ManageCandidateProfileUseCase() {
+                            @Override
+                            public Optional<CandidateProfile> getProfile() {
+                                return profileRepository.findDefault();
+                            }
+
+                            @Override
+                            public void updateProfile(CandidateProfile profile) {
+                                profileRepository.save(profile);
+                            }
+                        }
+                        : null);
     }
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
+        String method = exchange.getRequestMethod();
+
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+            exchange.getResponseHeaders().set("Access-Control-Allow-Headers", "Content-Type");
+            exchange.sendResponseHeaders(204, -1);
+            exchange.close();
+            return;
+        }
+
+        if (!"GET".equalsIgnoreCase(method)) {
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(405, -1);
+            exchange.close();
+            return;
+        }
+
         CandidateProfile profile =
-                profileRepository != null ? profileRepository.findDefault().orElse(null) : null;
-        byte[] responseBytes = JsonStorageUtils.createObjectMapper()
-                .writeValueAsString(profile)
-                .getBytes(StandardCharsets.UTF_8);
+                profileUseCase != null ? profileUseCase.getProfile().orElse(null) : null;
+
+        if (profile == null) {
+            exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+            return;
+        }
+
+        byte[] responseBytes = MAPPER.writeValueAsString(profile).getBytes(StandardCharsets.UTF_8);
 
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");
