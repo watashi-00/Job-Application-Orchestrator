@@ -2,6 +2,12 @@ package com.watashi.adapters.in.web;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
+import com.watashi.core.ports.in.AssessJobCompatibilityUseCase;
+import com.watashi.core.ports.in.DiscoverJobsUseCase;
+import com.watashi.core.ports.in.GetJobsUseCase;
+import com.watashi.core.ports.out.CandidateProfileRepository;
+import com.watashi.core.ports.out.FilterConfigRepository;
+import com.watashi.core.ports.out.JobRepository;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
@@ -172,7 +178,7 @@ public class IndexHtmlHandler implements HttpHandler {
                 .detail-meta-table td { padding: 4px 0; font-size: 12px; }
                 .detail-meta-table td.label { color: #64748b; width: 90px; }
                 .detail-meta-table td.val { font-weight: 500; color: #0f172a; }
-                .detail-desc { font-size: 12px; color: #334155; line-height: 1.6; white-space: pre-wrap; margin-top: 8px; max-height: 240px; overflow-y: auto; border: 1px solid #f1f5f9; padding: 8px; border-radius: 4px; background: #fafafa; }
+                .detail-desc { font-size: 12px; color: #334155; line-height: 1.6; font-family: inherit; margin-top: 8px; max-height: 280px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 4px; background: #fafafa; }
                 .detail-link { display: inline-block; margin-top: 12px; color: #2563eb; text-decoration: none; font-size: 12px; font-weight: 600; }
                 .detail-link:hover { text-decoration: underline; }
             </style>
@@ -248,7 +254,7 @@ public class IndexHtmlHandler implements HttpHandler {
                             return;
                         }
                         const profile = await res.json();
-                        const salary = profile.desiredSalary ? `${profile.desiredSalary.currency || ''} ${profile.desiredSalary.minAmount || ''}-${profile.desiredSalary.maxAmount || ''}` : 'Not specified';
+                        const salary = profile.desiredSalary ? `${profile.desiredSalary.currency || ''} ${profile.desiredSalary.minAmount || profile.desiredSalary.min || ''}-${profile.desiredSalary.maxAmount || profile.desiredSalary.max || ''}` : 'Not specified';
 
                         panel.innerHTML = `
                             <div class="profile-title">${escapeHtml(profile.title || 'Candidate Profile')}</div>
@@ -346,6 +352,8 @@ public class IndexHtmlHandler implements HttpHandler {
                     const reqSkills = (job.requiredSkills || []).map(s => typeof s === 'string' ? s : s.name).join(', ') || 'None listed';
                     const optSkills = (job.optionalSkills || []).map(s => typeof s === 'string' ? s : s.name).join(', ') || 'None listed';
                     const st = (job.status || 'DISCOVERED').toUpperCase();
+                    const rawDesc = job.description || 'No description available.';
+                    const cleanDesc = escapeHtml(rawDesc).replace(/\\n/g, '<br>');
 
                     detailEl.innerHTML = `
                         <div class="detail-title">${escapeHtml(job.title || 'Untitled')}</div>
@@ -361,7 +369,7 @@ public class IndexHtmlHandler implements HttpHandler {
                         </table>
 
                         <div class="section-label">Job Description</div>
-                        <div class="detail-desc">${escapeHtml(job.description || 'No description available.')}</div>
+                        <div class="detail-desc">${cleanDesc}</div>
 
                         ${job.sourceUrl ? `<a class="detail-link" href="${escapeHtml(job.sourceUrl)}" target="_blank">View Original Post ↗</a>` : ''}
                     `;
@@ -403,6 +411,23 @@ public class IndexHtmlHandler implements HttpHandler {
         </body>
         </html>
         """;
+
+    public IndexHtmlHandler() {}
+
+    public IndexHtmlHandler(
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            CandidateProfileRepository profileRepository,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository) {}
+
+    public IndexHtmlHandler(
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            CandidateProfileRepository profileRepository,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            GetJobsUseCase getJobsUseCase) {}
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
