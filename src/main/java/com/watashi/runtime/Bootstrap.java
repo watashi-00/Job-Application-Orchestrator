@@ -8,9 +8,11 @@ import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
 import com.watashi.adapters.out.persistence.json.JsonCandidateProfileRepository;
 import com.watashi.adapters.out.persistence.json.JsonFilterConfigRepository;
 import com.watashi.adapters.out.persistence.json.JsonJobRepository;
+import com.watashi.adapters.out.persistence.json.JsonSkillDictionaryRepository;
 import com.watashi.core.domain.candidate.CandidatePreferences;
 import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.common.*;
+import com.watashi.core.domain.discovery.SkillDictionary;
 import com.watashi.core.domain.job.JobOpportunity;
 import com.watashi.core.domain.matching.*;
 import com.watashi.core.ports.in.*;
@@ -49,6 +51,9 @@ public class Bootstrap {
         JobRepository jobRepository = new JsonJobRepository();
         CandidateProfileRepository candidateRepository = new JsonCandidateProfileRepository();
         FilterConfigRepository filterConfigRepository = new JsonFilterConfigRepository();
+        JsonSkillDictionaryRepository dictionaryRepository = new JsonSkillDictionaryRepository();
+        SkillDictionary skillDictionary = dictionaryRepository.load();
+        dictionaryRepository.save(skillDictionary);
 
         CandidateProfileIngestor pdfIngestor = new PdfCandidateIngestor();
         IngestCandidateProfileUseCase ingestUseCase =
@@ -128,6 +133,7 @@ public class Bootstrap {
                 + jobRepository.findAll().size() + " jobs)");
         System.out.println("   - " + Paths.get("data", "profile.json").toAbsolutePath());
         System.out.println("   - " + Paths.get("data", "filters.json").toAbsolutePath());
+        System.out.println("   - " + Paths.get("data", "skills-dictionary.json").toAbsolutePath());
         System.out.println("===============================================================");
 
         GetJobsUseCase getJobsUseCase = jobRepository::findAll;

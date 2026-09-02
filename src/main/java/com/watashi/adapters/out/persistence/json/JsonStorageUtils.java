@@ -1,5 +1,6 @@
 package com.watashi.adapters.out.persistence.json;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -55,10 +56,21 @@ public final class JsonStorageUtils {
         Objects.requireNonNull(path, "path must not be null");
         Objects.requireNonNull(clazz, "clazz must not be null");
 
-        if (!Files.exists(path)) {
+        if (!Files.exists(path) || Files.size(path) == 0) {
             return null;
         }
 
         return OBJECT_MAPPER.readValue(path.toFile(), clazz);
+    }
+
+    public static <T> T readJson(Path path, TypeReference<T> typeRef) throws IOException {
+        Objects.requireNonNull(path, "path must not be null");
+        Objects.requireNonNull(typeRef, "typeRef must not be null");
+
+        if (!Files.exists(path) || Files.size(path) == 0) {
+            return null;
+        }
+
+        return OBJECT_MAPPER.readValue(path.toFile(), typeRef);
     }
 }

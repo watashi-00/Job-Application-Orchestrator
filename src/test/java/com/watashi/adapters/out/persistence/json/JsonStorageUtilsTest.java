@@ -60,7 +60,7 @@ public class JsonStorageUtilsTest extends TestCase {
         Path tempFile = Files.createTempFile("orchestrator-test-read-null", ".json");
         try {
             try {
-                JsonStorageUtils.readJson(tempFile, null);
+                JsonStorageUtils.readJson(tempFile, (Class<SampleData>) null);
                 fail("Should throw NullPointerException when clazz is null");
             } catch (NullPointerException e) {
                 // Expected
