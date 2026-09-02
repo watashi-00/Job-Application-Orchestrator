@@ -13,6 +13,7 @@ import com.watashi.adapters.out.persistence.json.JsonFilterConfigRepository;
 import com.watashi.adapters.out.persistence.json.JsonJobApplicationRepository;
 import com.watashi.adapters.out.persistence.json.JsonJobRepository;
 import com.watashi.adapters.out.persistence.json.JsonRecruiterEmailRepository;
+import com.watashi.adapters.out.persistence.json.JsonResumePdfStorageRepository;
 import com.watashi.adapters.out.persistence.json.JsonSkillDictionaryRepository;
 import com.watashi.core.domain.candidate.CandidatePreferences;
 import com.watashi.core.domain.candidate.CandidateProfile;
@@ -30,6 +31,7 @@ import com.watashi.core.ports.in.DiscoverJobsUseCase;
 import com.watashi.core.ports.in.DispatchJobApplicationUseCase;
 import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
+import com.watashi.core.ports.in.GetSystemLogsUseCase;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
 import com.watashi.core.ports.in.ManageCustomTagsUseCase;
 import com.watashi.core.ports.in.SyncRecruiterInboxUseCase;
@@ -43,11 +45,13 @@ import com.watashi.core.ports.out.JobApplicationRepository;
 import com.watashi.core.ports.out.JobRepository;
 import com.watashi.core.ports.out.JobSource;
 import com.watashi.core.ports.out.RecruiterEmailRepository;
+import com.watashi.core.ports.out.ResumePdfStorageRepository;
 import com.watashi.core.ports.out.SkillDictionaryRepository;
 import com.watashi.core.service.DefaultAssessJobCompatibilityService;
 import com.watashi.core.service.DefaultCoverLetterService;
 import com.watashi.core.service.DefaultDiscoverJobsService;
 import com.watashi.core.service.DefaultDispatchJobApplicationService;
+import com.watashi.core.service.DefaultGetSystemLogsService;
 import com.watashi.core.service.DefaultIngestCandidateProfileService;
 import com.watashi.core.service.DefaultManageCustomTagsService;
 import com.watashi.core.service.DefaultSyncRecruiterInboxService;
@@ -89,9 +93,10 @@ public class Bootstrap {
         SkillDictionary skillDictionary = dictionaryRepository.load();
         dictionaryRepository.save(skillDictionary);
 
+        ResumePdfStorageRepository pdfRepository = new JsonResumePdfStorageRepository();
         CandidateProfileIngestor pdfIngestor = new PdfCandidateIngestor();
         IngestCandidateProfileUseCase ingestUseCase =
-                new DefaultIngestCandidateProfileService(pdfIngestor, candidateRepository);
+                new DefaultIngestCandidateProfileService(pdfIngestor, candidateRepository, pdfRepository);
 
         byte[] samplePdf = generateSampleResumePdf();
         CandidatePreferences preferences = new CandidatePreferences(
@@ -185,6 +190,7 @@ public class Bootstrap {
 
         GetJobsUseCase getJobsUseCase = jobRepository::findAll;
         GenerateCoverLetterUseCase coverLetterService = new DefaultCoverLetterService();
+        GetSystemLogsUseCase systemLogsService = new DefaultGetSystemLogsService(dispatchUseCase, inboxService);
         DashboardHttpServer server = new DashboardHttpServer(
                 8080,
                 discoverUseCase,
@@ -198,7 +204,9 @@ public class Bootstrap {
                 trackUseCase,
                 dispatchUseCase,
                 inboxService,
-                tagsService);
+                tagsService,
+                pdfRepository,
+                systemLogsService);
         server.start();
         System.out.println("🌐 Web Dashboard live at http://localhost:8080");
     }

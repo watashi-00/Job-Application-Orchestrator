@@ -24,6 +24,10 @@ public class IndexHtmlHandlerTest extends TestCase {
             assertTrue(response.body().contains("DASHBOARD"));
             assertTrue(response.body().contains("Upload Resume PDF"));
             assertTrue(response.body().contains("pdf-file-input"));
+            assertTrue(response.body().contains("View Resume PDF"));
+            assertTrue(response.body().contains("pdf-modal"));
+            assertTrue(response.body().contains("Open in Gmail"));
+            assertTrue(response.body().contains("updateProfileSeniorities"));
             assertTrue(response.body().contains("Generate Cover Letter"));
             assertTrue(response.body().contains("copyCoverLetter"));
             assertTrue(response.body().contains("APPLIED"));

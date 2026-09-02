@@ -246,9 +246,10 @@ public class IndexHtmlHandler implements HttpHandler {
                     <div class="panel-content" id="profile-panel">
                         <div class="profile-sub">Loading profile...</div>
                     </div>
-                    <div style="padding: 0 16px 16px 16px;">
+                    <div style="padding: 0 16px 16px 16px; display: flex; flex-direction: column; gap: 8px;">
+                        <button id="btn-view-pdf" class="btn-action" style="width: 100%; justify-content: center; background-color: #475569; border-color: #475569;" onclick="openPdfModal()"><span>👁️ View Resume PDF</span></button>
                         <input type="file" id="pdf-file-input" accept=".pdf" style="display:none;" onchange="uploadPdfFile(this)" />
-                        <button id="btn-upload-pdf" class="btn-action" style="width: 100%; margin-top: 12px; justify-content: center;" onclick="document.getElementById('pdf-file-input').click()"><span>📄 Upload Resume PDF</span></button>
+                        <button id="btn-upload-pdf" class="btn-action" style="width: 100%; justify-content: center;" onclick="document.getElementById('pdf-file-input').click()"><span>📄 Upload Resume PDF</span></button>
                     </div>
                 </div>
 
@@ -332,11 +333,11 @@ public class IndexHtmlHandler implements HttpHandler {
                     </div>
                     <div class="panel" style="height: 180px; flex-shrink: 0;">
                         <div class="panel-header">
-                            <span>Submission Audit Log</span>
-                            <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="fetchDispatchLogs()">🔄 Refresh</button>
+                            <span>System Activity Central</span>
+                            <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="loadActivityLogs()">🔄 Refresh</button>
                         </div>
                         <div class="panel-content" id="dispatch-log-panel" style="padding: 10px; font-size: 11px;">
-                            <div style="color: #94a3b8; text-align: center; padding: 20px;">No application dispatches logged yet.</div>
+                            <div style="color: #94a3b8; text-align: center; padding: 20px;">No activity logged yet.</div>
                         </div>
                     </div>
                 </div>
@@ -365,6 +366,17 @@ public class IndexHtmlHandler implements HttpHandler {
                 </div>
             </div>
 
+            <!-- Resume PDF Viewer Modal -->
+            <div id="pdf-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background-color: #ffffff; border-radius: 8px; width: 80%; height: 85%; padding: 16px; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <span style="font-size: 16px; font-weight: 700; color: #0f172a;">📄 Resume PDF Viewer</span>
+                        <button class="btn-filter" onclick="closePdfModal()">✕ Close</button>
+                    </div>
+                    <iframe id="pdf-frame" src="/api/profile/resume" style="width: 100%; flex: 1; border: 1px solid #cbd5e1; border-radius: 4px;"></iframe>
+                </div>
+            </div>
+
             <script>
                 let rawEvaluatedItems = [];
                 let activeStatusFilter = 'ALL';
@@ -373,14 +385,114 @@ public class IndexHtmlHandler implements HttpHandler {
                 let customTags = [];
                 let selectedJobId = null;
                 let selectedJobIds = new Set();
+                let currentProfile = null;
 
                 document.addEventListener('DOMContentLoaded', () => {
                     loadProfile();
                     loadJobs();
-                    fetchDispatchLogs();
+                    loadActivityLogs();
                     loadCustomTags();
                     loadInbox();
                 });
+
+                function openPdfModal() {
+                    const modal = document.getElementById('pdf-modal');
+                    if (modal) modal.style.display = 'flex';
+                }
+
+                function closePdfModal() {
+                    const modal = document.getElementById('pdf-modal');
+                    if (modal) modal.style.display = 'none';
+                }
+
+                async function updateProfileSeniorities(seniorities) {
+                    try {
+                        const res = await fetch('/api/profile/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ targetSeniorities: seniorities })
+                        });
+                        if (!res.ok) throw new Error('Failed to update seniorities');
+                        await loadProfile();
+                        await loadJobs();
+                    } catch (err) {
+                        alert('Error updating seniorities: ' + err.message);
+                    }
+                }
+
+                async function toggleProfileSeniority(s) {
+                    if (!currentProfile) return;
+                    const currentList = (currentProfile.targetSeniorities || []).map(x => x.toUpperCase());
+                    let updated;
+                    if (currentList.includes(s.toUpperCase())) {
+                        updated = currentList.filter(x => x !== s.toUpperCase());
+                    } else {
+                        updated = [...currentList, s.toUpperCase()];
+                    }
+                    await updateProfileSeniorities(updated);
+                }
+
+                async function toggleProfileWorkMode(w) {
+                    if (!currentProfile) return;
+                    const currentList = (currentProfile.preferredWorkModes || []).map(x => x.toUpperCase());
+                    let updated;
+                    if (currentList.includes(w.toUpperCase())) {
+                        updated = currentList.filter(x => x !== w.toUpperCase());
+                    } else {
+                        updated = [...currentList, w.toUpperCase()];
+                    }
+                    try {
+                        const res = await fetch('/api/profile/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ preferredWorkModes: updated })
+                        });
+                        if (!res.ok) throw new Error('Failed to update work modes');
+                        await loadProfile();
+                        await loadJobs();
+                    } catch (err) {
+                        alert('Error updating work modes: ' + err.message);
+                    }
+                }
+
+                async function addProfileSkill() {
+                    if (!currentProfile) return;
+                    const skillName = prompt('Enter skill name:');
+                    if (!skillName || !skillName.trim()) return;
+                    const currentSkills = (currentProfile.skills || []).map(s => typeof s === 'string' ? s : s.name);
+                    if (currentSkills.map(s => s.toLowerCase()).includes(skillName.trim().toLowerCase())) return;
+                    const updatedSkills = [...currentSkills, skillName.trim()];
+                    try {
+                        const res = await fetch('/api/profile/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ skills: updatedSkills })
+                        });
+                        if (!res.ok) throw new Error('Failed to add skill');
+                        await loadProfile();
+                        await loadJobs();
+                    } catch (err) {
+                        alert('Error adding skill: ' + err.message);
+                    }
+                }
+
+                async function removeProfileSkill(s) {
+                    if (!currentProfile) return;
+                    const currentSkills = (currentProfile.skills || []).map(sk => typeof sk === 'string' ? sk : sk.name);
+                    const updatedSkills = currentSkills.filter(sk => sk !== s);
+                    try {
+                        const res = await fetch('/api/profile/update', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ skills: updatedSkills })
+                        });
+                        if (!res.ok) throw new Error('Failed to remove skill');
+                        await loadProfile();
+                        await loadJobs();
+                    } catch (err) {
+                        alert('Error removing skill: ' + err.message);
+                    }
+                }
 
                 async function loadProfile() {
                     const panel = document.getElementById('profile-panel');
@@ -390,26 +502,46 @@ public class IndexHtmlHandler implements HttpHandler {
                             panel.innerHTML = '<div class="profile-sub">No candidate profile loaded</div>';
                             return;
                         }
-                        const profile = await res.json();
-                        const salary = profile.desiredSalary ? `${profile.desiredSalary.currency || ''} ${profile.desiredSalary.minAmount || profile.desiredSalary.min || ''}-${profile.desiredSalary.maxAmount || profile.desiredSalary.max || ''}` : 'Not specified';
+                        currentProfile = await res.json();
+                        const salary = currentProfile.desiredSalary ? `${currentProfile.desiredSalary.currency || ''} ${currentProfile.desiredSalary.minAmount || currentProfile.desiredSalary.min || ''}-${currentProfile.desiredSalary.maxAmount || currentProfile.desiredSalary.max || ''}` : 'Not specified';
+
+                        const allSeniorities = ['JUNIOR', 'MID', 'SENIOR', 'LEAD', 'EXECUTIVE'];
+                        const activeSeniorities = (currentProfile.targetSeniorities || []).map(s => s.toUpperCase());
+
+                        const allWorkModes = ['REMOTE', 'HYBRID', 'ON_SITE'];
+                        const activeWorkModes = (currentProfile.preferredWorkModes || []).map(w => w.toUpperCase());
+
+                        const skillsList = (currentProfile.skills || []).map(s => typeof s === 'string' ? s : s.name);
 
                         panel.innerHTML = `
-                            <div class="profile-title">${escapeHtml(profile.title || 'Candidate Profile')}</div>
-                            <div class="profile-sub">${escapeHtml(profile.summary || '')}</div>
+                            <div class="profile-title">${escapeHtml(currentProfile.title || 'Candidate Profile')}</div>
+                            <div class="profile-sub">${escapeHtml(currentProfile.summary || '')}</div>
 
                             <div class="section-label">Target Seniority</div>
                             <div class="tag-list">
-                                ${(profile.targetSeniorities || []).map(s => `<span class="tag">${escapeHtml(s)}</span>`).join('') || '<span class="profile-sub">None</span>'}
+                                ${allSeniorities.map(s => {
+                                    const active = activeSeniorities.includes(s);
+                                    return `<button class="btn-filter ${active ? 'active' : ''}" onclick="toggleProfileSeniority('${s}')">${s}</button>`;
+                                }).join('')}
                             </div>
 
                             <div class="section-label">Preferred Work Mode</div>
                             <div class="tag-list">
-                                ${(profile.preferredWorkModes || []).map(w => `<span class="tag">${escapeHtml(w)}</span>`).join('') || '<span class="profile-sub">None</span>'}
+                                ${allSeniorities.length ? allWorkModes.map(w => {
+                                    const active = activeWorkModes.includes(w);
+                                    return `<button class="btn-filter ${active ? 'active' : ''}" onclick="toggleProfileWorkMode('${w}')">${w}</button>`;
+                                }).join('') : ''}
                             </div>
 
                             <div class="section-label">Extracted Skills</div>
                             <div class="tag-list">
-                                ${(profile.skills || []).map(s => `<span class="tag">${escapeHtml(typeof s === 'string' ? s : s.name)}</span>`).join('') || '<span class="profile-sub">None</span>'}
+                                ${skillsList.map(s => `
+                                    <span class="tag tag-matched" style="display: inline-flex; align-items: center; gap: 4px;">
+                                        ${escapeHtml(s)}
+                                        <span style="cursor: pointer; font-weight: bold; margin-left: 2px;" onclick="removeProfileSkill('${escapeHtml(s)}')">×</span>
+                                    </span>
+                                `).join('')}
+                                <button class="btn-filter" style="border-style: dashed;" onclick="addProfileSkill()">+ Add Skill</button>
                             </div>
 
                             <div class="section-label">Desired Salary</div>
@@ -679,7 +811,7 @@ public class IndexHtmlHandler implements HttpHandler {
                         });
                         if (!res.ok) throw new Error('Dispatch failed with status ' + res.status);
                         const log = await res.json();
-                        await fetchDispatchLogs();
+                        await loadActivityLogs();
                         await loadJobs();
                         if (selectedJobId === jobId) selectJob(jobId);
                         if (log.requiresHumanAssistance) {
@@ -688,6 +820,49 @@ public class IndexHtmlHandler implements HttpHandler {
                         return log;
                     } catch (err) {
                         alert('Failed to dispatch application: ' + err.message);
+                    }
+                }
+
+                async function loadActivityLogs() {
+                    const logPanel = document.getElementById('dispatch-log-panel');
+                    if (!logPanel) return;
+                    try {
+                        const res = await fetch('/api/logs');
+                        if (!res.ok) {
+                            await fetchDispatchLogs();
+                            return;
+                        }
+                        const logs = await res.json();
+                        if (!logs || logs.length === 0) {
+                            logPanel.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 20px;">No activity logged yet.</div>';
+                            return;
+                        }
+                        logPanel.innerHTML = logs.map(log => {
+                            let indicator = '🟢';
+                            let statusColor = '#16a34a';
+                            if (log.status === 'NEEDS_HUMAN_ASSISTANCE' || log.type === 'NEEDS_HUMAN_ASSISTANCE') {
+                                indicator = '⚠️';
+                                statusColor = '#d97706';
+                            } else if (log.status === 'SUBMITTING') {
+                                indicator = '🟡';
+                                statusColor = '#ca8a04';
+                            }
+                            const timeStr = log.timestamp ? (log.timestamp.includes('T') ? log.timestamp.split('T')[1].substring(0, 8) : log.timestamp) : '';
+                            const gmailBtn = log.gmailUrl ? `<a href="${escapeHtml(log.gmailUrl)}" target="_blank" class="btn-card-action" style="display: inline-block; text-decoration: none; margin-top: 4px; color: #ea4335; border-color: #fca5a5; background-color: #fef2f2;">✉️ Open in Gmail</a>` : '';
+
+                            return `
+                                <div style="border-bottom: 1px solid #f1f5f9; padding: 6px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: 600; color: ${statusColor};">${indicator} ${escapeHtml(log.title)}</span>
+                                        <span style="font-size: 10px; color: #94a3b8;">${escapeHtml(timeStr)}</span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #334155; margin-top: 2px;">${escapeHtml(log.detail)}</div>
+                                    ${gmailBtn}
+                                </div>
+                            `;
+                        }).join('');
+                    } catch (err) {
+                        await fetchDispatchLogs();
                     }
                 }
 
