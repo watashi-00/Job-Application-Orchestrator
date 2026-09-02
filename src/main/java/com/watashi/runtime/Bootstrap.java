@@ -1,5 +1,6 @@
 package com.watashi.runtime;
 
+import com.watashi.adapters.in.web.DashboardHttpServer;
 import com.watashi.adapters.out.ingestor.pdf.PdfCandidateIngestor;
 import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
 import com.watashi.adapters.out.persistence.json.JsonCandidateProfileRepository;
@@ -124,6 +125,18 @@ public class Bootstrap {
         System.out.println("   - " + Paths.get("data", "profile.json").toAbsolutePath());
         System.out.println("   - " + Paths.get("data", "filters.json").toAbsolutePath());
         System.out.println("===============================================================");
+
+        GetJobsUseCase getJobsUseCase = jobRepository::findAll;
+        DashboardHttpServer server = new DashboardHttpServer(
+                8080,
+                discoverUseCase,
+                assessUseCase,
+                candidateRepository,
+                filterConfigRepository,
+                jobRepository,
+                getJobsUseCase);
+        server.start();
+        System.out.println("🌐 Web Dashboard live at http://localhost:8080");
     }
 
     private static byte[] generateSampleResumePdf() {

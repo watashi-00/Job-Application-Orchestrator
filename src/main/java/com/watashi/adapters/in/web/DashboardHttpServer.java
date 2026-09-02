@@ -31,6 +31,7 @@ public class DashboardHttpServer {
         this.port = port;
         try {
             this.server = HttpServer.create(new InetSocketAddress(port), 0);
+            this.server.createContext("/", new IndexHtmlHandler());
             this.server.createContext("/api/jobs", new JobApiHandler(discoverUseCase, profileUseCase, getJobsUseCase));
             this.server.createContext("/api/profile", new ProfileApiHandler(profileUseCase));
             this.executor = Executors.newFixedThreadPool(4);
@@ -52,6 +53,24 @@ public class DashboardHttpServer {
                 port,
                 discoverUseCase,
                 assessUseCase,
+                profileRepository,
+                filterRepository,
+                jobRepository,
+                jobRepository != null ? jobRepository::findAll : List::of);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            CandidateProfileRepository profileRepository,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            GetJobsUseCase getJobsUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
                 profileRepository != null
                         ? new ManageCandidateProfileUseCase() {
                             @Override
@@ -65,7 +84,7 @@ public class DashboardHttpServer {
                             }
                         }
                         : null,
-                jobRepository != null ? jobRepository::findAll : List::of);
+                getJobsUseCase != null ? getJobsUseCase : (jobRepository != null ? jobRepository::findAll : List::of));
     }
 
     public void start() {
