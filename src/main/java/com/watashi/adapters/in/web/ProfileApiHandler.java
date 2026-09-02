@@ -100,7 +100,17 @@ public class ProfileApiHandler implements HttpHandler {
             }
 
             try {
-                CandidateProfile updatedProfile = ingestUseCase.ingestFromPdf(pdfBytes, null);
+                CandidateProfile existing =
+                        profileUseCase != null ? profileUseCase.getProfile().orElse(null) : null;
+                com.watashi.core.domain.candidate.CandidatePreferences prefs = null;
+                if (existing != null) {
+                    prefs = new com.watashi.core.domain.candidate.CandidatePreferences(
+                            existing.desiredSalary(),
+                            existing.preferredWorkModes(),
+                            existing.targetSeniorities(),
+                            existing.preferredLocations());
+                }
+                CandidateProfile updatedProfile = ingestUseCase.ingestFromPdf(pdfBytes, prefs);
                 if (updatedProfile != null) {
                     if (profileUseCase != null) {
                         profileUseCase.updateProfile(updatedProfile);

@@ -98,15 +98,21 @@ public class Bootstrap {
         IngestCandidateProfileUseCase ingestUseCase =
                 new DefaultIngestCandidateProfileService(pdfIngestor, candidateRepository, pdfRepository);
 
-        byte[] samplePdf = generateSampleResumePdf();
-        CandidatePreferences preferences = new CandidatePreferences(
-                new SalaryRange(new BigDecimal("10000"), new BigDecimal("20000"), "USD"),
-                Set.of(WorkMode.REMOTE),
-                Set.of(SeniorityLevel.LEAD, SeniorityLevel.SENIOR, SeniorityLevel.MID),
-                Set.of("Remote"));
+        CandidateProfile profile;
+        if (candidateRepository.findDefault().isPresent() && pdfRepository.exists()) {
+            System.out.println("\n--> Loaded existing Candidate Profile & Resume PDF from disk...");
+            profile = candidateRepository.findDefault().get();
+        } else {
+            byte[] samplePdf = generateSampleResumePdf();
+            CandidatePreferences preferences = new CandidatePreferences(
+                    new SalaryRange(new BigDecimal("10000"), new BigDecimal("20000"), "USD"),
+                    Set.of(WorkMode.REMOTE),
+                    Set.of(SeniorityLevel.LEAD, SeniorityLevel.SENIOR, SeniorityLevel.MID),
+                    Set.of("Remote"));
 
-        System.out.println("\n--> Ingesting candidate resume PDF using Apache PDFBox & saving profile...");
-        CandidateProfile profile = ingestUseCase.ingestFromPdf(samplePdf, preferences);
+            System.out.println("\n--> Ingesting candidate resume PDF using Apache PDFBox & saving profile...");
+            profile = ingestUseCase.ingestFromPdf(samplePdf, preferences);
+        }
 
         System.out.println("\n[Ingested Candidate Profile]: " + profile.title());
         System.out.println("  Extracted Skills from PDF: "
