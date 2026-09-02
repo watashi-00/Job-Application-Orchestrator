@@ -2,7 +2,7 @@ package com.watashi.adapters.out.jobsource.arbeitnow;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
+import com.watashi.core.domain.common.HtmlUtils;
 import com.watashi.core.domain.common.SeniorityLevel;
 import com.watashi.core.domain.common.Skill;
 import com.watashi.core.domain.common.WorkMode;
@@ -86,7 +86,7 @@ public class ArbeitnowJobSource implements JobSource {
                 String company = getFieldAsString(item, "company_name");
                 String title = getFieldAsString(item, "title");
                 String rawDescription = getFieldAsString(item, "description");
-                String description = RemotiveJobSource.stripHtml(rawDescription);
+                String description = HtmlUtils.stripHtml(rawDescription);
                 String location = getFieldAsString(item, "location");
                 String url = getFieldAsString(item, "url");
 

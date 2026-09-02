@@ -1,5 +1,6 @@
 package com.watashi.adapters.out.jobsource.remotive;
 
+import com.watashi.core.domain.common.HtmlUtils;
 import com.watashi.core.domain.common.SalaryRange;
 import com.watashi.core.domain.common.SeniorityLevel;
 import com.watashi.core.domain.common.Skill;
@@ -221,26 +222,7 @@ public class RemotiveJobSource implements JobSource {
             }
         }
         String rawHtml = unescapeJson(sb.toString());
-        return stripHtml(rawHtml);
-    }
-
-    public static String stripHtml(String html) {
-        if (html == null || html.isBlank()) {
-            return "";
-        }
-        String clean = html.replaceAll("(?i)<br\\s*/?>", "\n")
-                .replaceAll("(?i)</p>", "\n")
-                .replaceAll("(?i)</li>", "\n")
-                .replaceAll("<[^>]*>", "")
-                .replace("&nbsp;", " ")
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&quot;", "\"")
-                .replace("&#39;", "'")
-                .replace("\u00a0", " ")
-                .replaceAll("\\r?\\n\\s*\\r?\\n", "\n\n");
-        return clean.strip();
+        return HtmlUtils.stripHtml(rawHtml);
     }
 
     private static String extractField(Pattern pattern, String objJson) {

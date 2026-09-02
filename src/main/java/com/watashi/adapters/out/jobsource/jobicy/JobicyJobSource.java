@@ -2,7 +2,7 @@ package com.watashi.adapters.out.jobsource.jobicy;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
+import com.watashi.core.domain.common.HtmlUtils;
 import com.watashi.core.domain.common.SalaryRange;
 import com.watashi.core.domain.common.SeniorityLevel;
 import com.watashi.core.domain.common.Skill;
@@ -91,7 +91,7 @@ public class JobicyJobSource implements JobSource {
                 String title = getFirstFieldAsString(item, "jobTitle", "title");
                 String company = getFirstFieldAsString(item, "companyName", "company");
                 String rawDescription = getFirstFieldAsString(item, "jobDescription", "description");
-                String description = RemotiveJobSource.stripHtml(rawDescription);
+                String description = HtmlUtils.stripHtml(rawDescription);
                 String location = getFirstFieldAsString(item, "jobGeo", "location");
                 String url = getFieldAsString(item, "url");
 
