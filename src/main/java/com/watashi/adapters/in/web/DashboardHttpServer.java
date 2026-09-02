@@ -5,6 +5,7 @@ import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.matching.FilterConfiguration;
 import com.watashi.core.ports.in.AssessJobCompatibilityUseCase;
 import com.watashi.core.ports.in.DiscoverJobsUseCase;
+import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
 import com.watashi.core.ports.in.ManageCandidateProfileUseCase;
@@ -12,6 +13,7 @@ import com.watashi.core.ports.in.ManageFilterConfigUseCase;
 import com.watashi.core.ports.out.CandidateProfileRepository;
 import com.watashi.core.ports.out.FilterConfigRepository;
 import com.watashi.core.ports.out.JobRepository;
+import com.watashi.core.service.DefaultCoverLetterService;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -154,6 +156,27 @@ public class DashboardHttpServer {
             int port,
             DiscoverJobsUseCase discoverUseCase,
             AssessJobCompatibilityUseCase assessUseCase,
+            CandidateProfileRepository profileRepository,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase,
+            GenerateCoverLetterUseCase coverLetterUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                toProfileUseCase(profileRepository),
+                toFilterUseCase(filterRepository),
+                getJobsUseCase != null ? getJobsUseCase : toGetJobsUseCase(jobRepository),
+                ingestUseCase,
+                coverLetterUseCase);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
             ManageCandidateProfileUseCase profileUseCase,
             FilterConfigRepository filterRepository,
             JobRepository jobRepository,
@@ -173,9 +196,42 @@ public class DashboardHttpServer {
             DiscoverJobsUseCase discoverUseCase,
             AssessJobCompatibilityUseCase assessUseCase,
             ManageCandidateProfileUseCase profileUseCase,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase,
+            GenerateCoverLetterUseCase coverLetterUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                profileUseCase,
+                toFilterUseCase(filterRepository),
+                getJobsUseCase != null ? getJobsUseCase : toGetJobsUseCase(jobRepository),
+                ingestUseCase,
+                coverLetterUseCase);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
             ManageFilterConfigUseCase filterUseCase,
             GetJobsUseCase getJobsUseCase,
             IngestCandidateProfileUseCase ingestUseCase) {
+        this(port, discoverUseCase, assessUseCase, profileUseCase, filterUseCase, getJobsUseCase, ingestUseCase, null);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
+            ManageFilterConfigUseCase filterUseCase,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase,
+            GenerateCoverLetterUseCase coverLetterUseCase) {
         this.port = port;
         try {
             this.server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -184,6 +240,12 @@ public class DashboardHttpServer {
                     "/api/jobs",
                     new JobApiHandler(discoverUseCase, assessUseCase, profileUseCase, filterUseCase, getJobsUseCase));
             this.server.createContext("/api/profile", new ProfileApiHandler(profileUseCase, ingestUseCase));
+            GenerateCoverLetterUseCase activeCoverLetterUseCase =
+                    coverLetterUseCase != null ? coverLetterUseCase : new DefaultCoverLetterService();
+            this.server.createContext(
+                    "/api/cover-letter",
+                    new CoverLetterApiHandler(
+                            activeCoverLetterUseCase, assessUseCase, profileUseCase, filterUseCase, getJobsUseCase));
             this.executor = Executors.newFixedThreadPool(4);
             this.server.setExecutor(this.executor);
         } catch (IOException e) {
