@@ -2,13 +2,14 @@ package com.watashi.adapters.out.persistence.json;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.watashi.core.domain.discovery.SkillDictionary;
+import com.watashi.core.ports.out.SkillDictionaryRepository;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.Map;
 import java.util.Objects;
 
-public class JsonSkillDictionaryRepository {
+public class JsonSkillDictionaryRepository implements SkillDictionaryRepository {
 
     private final Path filePath;
 

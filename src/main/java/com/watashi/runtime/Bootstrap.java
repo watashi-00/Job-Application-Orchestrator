@@ -51,7 +51,7 @@ public class Bootstrap {
         JobRepository jobRepository = new JsonJobRepository();
         CandidateProfileRepository candidateRepository = new JsonCandidateProfileRepository();
         FilterConfigRepository filterConfigRepository = new JsonFilterConfigRepository();
-        JsonSkillDictionaryRepository dictionaryRepository = new JsonSkillDictionaryRepository();
+        SkillDictionaryRepository dictionaryRepository = new JsonSkillDictionaryRepository();
         SkillDictionary skillDictionary = dictionaryRepository.load();
         dictionaryRepository.save(skillDictionary);
 
