@@ -1,5 +1,6 @@
 package com.watashi.runtime;
 
+import com.watashi.adapters.in.email.MiniMxServer;
 import com.watashi.adapters.in.web.DashboardHttpServer;
 import com.watashi.adapters.out.ingestor.pdf.PdfCandidateIngestor;
 import com.watashi.adapters.out.jobsource.arbeitnow.ArbeitnowJobSource;
@@ -7,9 +8,11 @@ import com.watashi.adapters.out.jobsource.jobicy.JobicyJobSource;
 import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
 import com.watashi.adapters.out.persistence.json.JsonCandidateCredentialsRepository;
 import com.watashi.adapters.out.persistence.json.JsonCandidateProfileRepository;
+import com.watashi.adapters.out.persistence.json.JsonCustomTagRepository;
 import com.watashi.adapters.out.persistence.json.JsonFilterConfigRepository;
 import com.watashi.adapters.out.persistence.json.JsonJobApplicationRepository;
 import com.watashi.adapters.out.persistence.json.JsonJobRepository;
+import com.watashi.adapters.out.persistence.json.JsonRecruiterEmailRepository;
 import com.watashi.adapters.out.persistence.json.JsonSkillDictionaryRepository;
 import com.watashi.core.domain.candidate.CandidatePreferences;
 import com.watashi.core.domain.candidate.CandidateProfile;
@@ -28,20 +31,26 @@ import com.watashi.core.ports.in.DispatchJobApplicationUseCase;
 import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
+import com.watashi.core.ports.in.ManageCustomTagsUseCase;
+import com.watashi.core.ports.in.SyncRecruiterInboxUseCase;
 import com.watashi.core.ports.in.TrackJobApplicationUseCase;
 import com.watashi.core.ports.out.CandidateCredentialsRepository;
 import com.watashi.core.ports.out.CandidateProfileIngestor;
 import com.watashi.core.ports.out.CandidateProfileRepository;
+import com.watashi.core.ports.out.CustomTagRepository;
 import com.watashi.core.ports.out.FilterConfigRepository;
 import com.watashi.core.ports.out.JobApplicationRepository;
 import com.watashi.core.ports.out.JobRepository;
 import com.watashi.core.ports.out.JobSource;
+import com.watashi.core.ports.out.RecruiterEmailRepository;
 import com.watashi.core.ports.out.SkillDictionaryRepository;
 import com.watashi.core.service.DefaultAssessJobCompatibilityService;
 import com.watashi.core.service.DefaultCoverLetterService;
 import com.watashi.core.service.DefaultDiscoverJobsService;
 import com.watashi.core.service.DefaultDispatchJobApplicationService;
 import com.watashi.core.service.DefaultIngestCandidateProfileService;
+import com.watashi.core.service.DefaultManageCustomTagsService;
+import com.watashi.core.service.DefaultSyncRecruiterInboxService;
 import com.watashi.core.service.DefaultTrackJobApplicationService;
 import com.watashi.infrastructure.http.HttpEngine;
 import java.io.ByteArrayOutputStream;
@@ -164,6 +173,16 @@ public class Bootstrap {
         DispatchJobApplicationUseCase dispatchUseCase =
                 new DefaultDispatchJobApplicationService(jobRepository, applicationRepository, credentialsRepository);
 
+        CustomTagRepository customTagRepository = new JsonCustomTagRepository();
+        ManageCustomTagsUseCase tagsService = new DefaultManageCustomTagsService(customTagRepository);
+
+        RecruiterEmailRepository emailRepository = new JsonRecruiterEmailRepository();
+        SyncRecruiterInboxUseCase inboxService = new DefaultSyncRecruiterInboxService(emailRepository, jobRepository);
+
+        MiniMxServer mxServer = new MiniMxServer(2525, inboxService);
+        mxServer.start();
+        System.out.println("📧 MiniMX SMTP Server live at smtp://localhost:2525");
+
         GetJobsUseCase getJobsUseCase = jobRepository::findAll;
         GenerateCoverLetterUseCase coverLetterService = new DefaultCoverLetterService();
         DashboardHttpServer server = new DashboardHttpServer(
@@ -177,7 +196,9 @@ public class Bootstrap {
                 ingestUseCase,
                 coverLetterService,
                 trackUseCase,
-                dispatchUseCase);
+                dispatchUseCase,
+                inboxService,
+                tagsService);
         server.start();
         System.out.println("🌐 Web Dashboard live at http://localhost:8080");
     }

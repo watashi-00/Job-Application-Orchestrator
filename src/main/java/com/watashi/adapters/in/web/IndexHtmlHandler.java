@@ -255,6 +255,9 @@ public class IndexHtmlHandler implements HttpHandler {
                 <!-- Column 2: Job Feed & Controls (1fr) -->
                 <div class="panel" style="padding: 16px;">
                     <div class="controls-bar">
+                        <!-- Dynamic Tag Pills Bar -->
+                        <div id="tag-pills-bar" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px;"></div>
+
                         <!-- Search Bar -->
                         <input id="search-input" class="search-input" type="text" placeholder="🔍 Search title, company, skills, or description..." oninput="renderJobs()" />
 
@@ -304,7 +307,7 @@ public class IndexHtmlHandler implements HttpHandler {
                     </div>
                 </div>
 
-                <!-- Column 3: Job Details & Submission Audit Log (320px) -->
+                <!-- Column 3: Job Details, Recruiter Inbox & Submission Audit Log (320px) -->
                 <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden;">
                     <div class="panel" style="flex: 1; min-height: 0;">
                         <div class="panel-header">
@@ -314,7 +317,20 @@ public class IndexHtmlHandler implements HttpHandler {
                             <div class="detail-placeholder">Select a job card to view full details</div>
                         </div>
                     </div>
-                    <div class="panel" style="height: 220px; flex-shrink: 0;">
+                    <!-- Recruiter Inbox Sync Panel -->
+                    <div class="panel" id="inbox-panel" style="height: 180px; flex-shrink: 0;">
+                        <div class="panel-header">
+                            <span>Recruiter Inbox (Port 2525)</span>
+                            <div style="display: flex; gap: 4px;">
+                                <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="testSimulateEmail()">📬 Test Email</button>
+                                <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="loadInbox()">🔄</button>
+                            </div>
+                        </div>
+                        <div class="panel-content" id="inbox-content" style="padding: 10px; font-size: 11px;">
+                            <div style="color: #94a3b8; text-align: center; padding: 20px;">No recruiter emails received yet.</div>
+                        </div>
+                    </div>
+                    <div class="panel" style="height: 180px; flex-shrink: 0;">
                         <div class="panel-header">
                             <span>Submission Audit Log</span>
                             <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="fetchDispatchLogs()">🔄 Refresh</button>
@@ -353,6 +369,8 @@ public class IndexHtmlHandler implements HttpHandler {
                 let rawEvaluatedItems = [];
                 let activeStatusFilter = 'ALL';
                 let activeRegionFilter = 'ALL';
+                let activeTagFilter = null;
+                let customTags = [];
                 let selectedJobId = null;
                 let selectedJobIds = new Set();
 
@@ -360,6 +378,8 @@ public class IndexHtmlHandler implements HttpHandler {
                     loadProfile();
                     loadJobs();
                     fetchDispatchLogs();
+                    loadCustomTags();
+                    loadInbox();
                 });
 
                 async function loadProfile() {
@@ -444,6 +464,19 @@ public class IndexHtmlHandler implements HttpHandler {
                         if (activeRegionFilter === 'WORLDWIDE' && !loc.includes('WORLDWIDE')) return false;
                         if (activeRegionFilter === 'AMERICAS' && !(loc.includes('AMERICA') || loc.includes('LATAM') || loc.includes('US'))) return false;
                         if (activeRegionFilter === 'USA' && !(loc.includes('USA') || loc.includes('US') || loc.includes('EUROPE'))) return false;
+
+                        // Custom Tag Filter
+                        if (activeTagFilter) {
+                            const tagLower = activeTagFilter.toLowerCase();
+                            const title = (job.title || '').toLowerCase();
+                            const company = (job.company || '').toLowerCase();
+                            const desc = (job.description || '').toLowerCase();
+                            const skills = (job.requiredSkills || []).map(s => typeof s === 'string' ? s : s.name).join(' ').toLowerCase();
+
+                            if (!title.includes(tagLower) && !company.includes(tagLower) && !desc.includes(tagLower) && !skills.includes(tagLower)) {
+                                return false;
+                            }
+                        }
 
                         // Keyword Search Filter
                         if (searchQuery.length > 0) {
@@ -875,6 +908,113 @@ public class IndexHtmlHandler implements HttpHandler {
                             btn.innerHTML = originalText;
                         }
                         input.value = '';
+                    }
+                }
+
+                async function loadCustomTags() {
+                    const bar = document.getElementById('tag-pills-bar');
+                    if (!bar) return;
+                    try {
+                        const res = await fetch('/api/tags');
+                        if (!res.ok) return;
+                        customTags = await res.json();
+                        renderTagPills();
+                    } catch (err) {
+                        console.error('Error loading custom tags:', err);
+                    }
+                }
+
+                function renderTagPills() {
+                    const bar = document.getElementById('tag-pills-bar');
+                    if (!bar) return;
+                    if (!customTags || customTags.length === 0) {
+                        bar.innerHTML = '<span style="font-size: 11px; color: #64748b; font-weight: 600; margin-right: 4px;">TAGS:</span><button class="btn-filter" style="border-style: dashed;" onclick="createCustomTag()">+ Add Tag</button>';
+                        return;
+                    }
+                    let html = '<span style="font-size: 11px; color: #64748b; font-weight: 600; display: flex; align-items: center; margin-right: 4px;">TAGS:</span>';
+                    html += customTags.map(t => {
+                        const isActive = activeTagFilter === t.name;
+                        const color = t.colorHex || '#6c757d';
+                        return `<button class="btn-filter ${isActive ? 'active' : ''}" style="${isActive ? '' : 'border-color:' + color + '; color:' + color + ';'}" onclick="toggleTagFilter('${escapeHtml(t.name)}', this)">${escapeHtml(t.name)}</button>`;
+                    }).join('');
+                    html += `<button class="btn-filter" style="border-style: dashed;" onclick="createCustomTag()">+ Add Tag</button>`;
+                    bar.innerHTML = html;
+                }
+
+                function toggleTagFilter(name, el) {
+                    if (activeTagFilter === name) {
+                        activeTagFilter = null;
+                    } else {
+                        activeTagFilter = name;
+                    }
+                    renderTagPills();
+                    renderJobs();
+                }
+
+                async function createCustomTag() {
+                    const name = prompt('Enter custom tag name:');
+                    if (!name || !name.trim()) return;
+                    try {
+                        const res = await fetch('/api/tags', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: name.trim() })
+                        });
+                        if (!res.ok) throw new Error('Failed to create tag');
+                        await loadCustomTags();
+                    } catch (err) {
+                        alert('Error creating tag: ' + err.message);
+                    }
+                }
+
+                async function loadInbox() {
+                    const content = document.getElementById('inbox-content');
+                    if (!content) return;
+                    try {
+                        const res = await fetch('/api/inbox');
+                        if (!res.ok) return;
+                        const emails = await res.json();
+                        if (!emails || emails.length === 0) {
+                            content.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 20px;">No recruiter emails received yet.</div>';
+                            return;
+                        }
+                        content.innerHTML = emails.slice().reverse().map(email => {
+                            const statusBadge = email.detectedStatus ? `<span class="badge badge-recommended" style="font-size: 9px; padding: 1px 4px;">${escapeHtml(email.detectedStatus)}</span>` : '';
+                            const matchInfo = email.matchedCompany ? `<span style="color: #0284c7; font-weight: 600;">Matched: ${escapeHtml(email.matchedCompany)}</span>` : '';
+                            return `
+                                <div style="border-bottom: 1px solid #f1f5f9; padding: 6px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: 600; color: #0f172a;">📩 ${escapeHtml(email.sender || 'Unknown')}</span>
+                                        ${statusBadge}
+                                    </div>
+                                    <div style="font-size: 11px; font-weight: 600; color: #334155; margin-top: 2px;">${escapeHtml(email.subject || '(No Subject)')}</div>
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${escapeHtml((email.bodyText || '').substring(0, 80))}${email.bodyText && email.bodyText.length > 80 ? '...' : ''}</div>
+                                    ${matchInfo ? `<div style="font-size: 10px; margin-top: 2px;">${matchInfo}</div>` : ''}
+                                </div>
+                            `;
+                        }).join('');
+                    } catch (err) {
+                        content.innerHTML = '<div style="color: #dc2626; text-align: center; padding: 10px;">Error loading inbox</div>';
+                    }
+                }
+
+                async function testSimulateEmail() {
+                    try {
+                        const res = await fetch('/api/inbox/parse', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                sender: 'recruiter@techcorp.io',
+                                recipient: 'candidate@watashi.com',
+                                subject: 'Interview Invitation for Senior Dev Role',
+                                bodyText: 'Hello, we were impressed by your profile at TechCorp and would like to schedule an interview.'
+                            })
+                        });
+                        if (!res.ok) throw new Error('Failed to simulate email');
+                        await loadInbox();
+                        await loadJobs();
+                    } catch (err) {
+                        alert('Error simulating email: ' + err.message);
                     }
                 }
 
