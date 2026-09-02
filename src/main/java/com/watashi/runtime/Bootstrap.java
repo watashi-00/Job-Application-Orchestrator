@@ -7,6 +7,7 @@ import com.watashi.adapters.out.jobsource.jobicy.JobicyJobSource;
 import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
 import com.watashi.adapters.out.persistence.json.JsonCandidateProfileRepository;
 import com.watashi.adapters.out.persistence.json.JsonFilterConfigRepository;
+import com.watashi.adapters.out.persistence.json.JsonJobApplicationRepository;
 import com.watashi.adapters.out.persistence.json.JsonJobRepository;
 import com.watashi.adapters.out.persistence.json.JsonSkillDictionaryRepository;
 import com.watashi.core.domain.candidate.CandidatePreferences;
@@ -25,9 +26,11 @@ import com.watashi.core.ports.in.DiscoverJobsUseCase;
 import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
+import com.watashi.core.ports.in.TrackJobApplicationUseCase;
 import com.watashi.core.ports.out.CandidateProfileIngestor;
 import com.watashi.core.ports.out.CandidateProfileRepository;
 import com.watashi.core.ports.out.FilterConfigRepository;
+import com.watashi.core.ports.out.JobApplicationRepository;
 import com.watashi.core.ports.out.JobRepository;
 import com.watashi.core.ports.out.JobSource;
 import com.watashi.core.ports.out.SkillDictionaryRepository;
@@ -35,6 +38,7 @@ import com.watashi.core.service.DefaultAssessJobCompatibilityService;
 import com.watashi.core.service.DefaultCoverLetterService;
 import com.watashi.core.service.DefaultDiscoverJobsService;
 import com.watashi.core.service.DefaultIngestCandidateProfileService;
+import com.watashi.core.service.DefaultTrackJobApplicationService;
 import com.watashi.infrastructure.http.HttpEngine;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -148,6 +152,10 @@ public class Bootstrap {
         System.out.println("   - " + Paths.get("data", "skills-dictionary.json").toAbsolutePath());
         System.out.println("===============================================================");
 
+        JobApplicationRepository applicationRepository = new JsonJobApplicationRepository();
+        TrackJobApplicationUseCase trackUseCase =
+                new DefaultTrackJobApplicationService(applicationRepository, jobRepository);
+
         GetJobsUseCase getJobsUseCase = jobRepository::findAll;
         GenerateCoverLetterUseCase coverLetterService = new DefaultCoverLetterService();
         DashboardHttpServer server = new DashboardHttpServer(
@@ -159,7 +167,8 @@ public class Bootstrap {
                 jobRepository,
                 getJobsUseCase,
                 ingestUseCase,
-                coverLetterService);
+                coverLetterService,
+                trackUseCase);
         server.start();
         System.out.println("🌐 Web Dashboard live at http://localhost:8080");
     }

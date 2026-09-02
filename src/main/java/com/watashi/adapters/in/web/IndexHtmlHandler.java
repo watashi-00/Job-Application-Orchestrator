@@ -198,6 +198,23 @@ public class IndexHtmlHandler implements HttpHandler {
                 .badge-conditional { background-color: #fffbeb; color: #d97706; border: 1px solid #fef08a; }
                 .badge-rejected { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
                 .badge-discovered { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+                .badge-applied { background-color: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+                .badge-ignored { background-color: #f3f4f6; color: #4b5563; border: 1px solid #e5e7eb; }
+
+                .btn-card-action {
+                    background-color: #ffffff;
+                    border: 1px solid #cbd5e1;
+                    color: #334155;
+                    padding: 3px 8px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    transition: all 0.15s ease;
+                }
+                .btn-card-action:hover { background-color: #f1f5f9; border-color: #94a3b8; }
+                .btn-card-delete:hover { background-color: #fef2f2; color: #dc2626; border-color: #fecaca; }
+                .job-checkbox { cursor: pointer; width: 15px; height: 15px; accent-color: #0f172a; }
 
                 .detail-placeholder { color: #94a3b8; font-size: 13px; text-align: center; margin-top: 40px; }
                 .detail-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
@@ -247,6 +264,8 @@ public class IndexHtmlHandler implements HttpHandler {
                                 <button class="btn-filter" onclick="setStatusFilter('RECOMMENDED', this)">RECOMMENDED</button>
                                 <button class="btn-filter" onclick="setStatusFilter('CONDITIONAL', this)">CONDITIONAL</button>
                                 <button class="btn-filter" onclick="setStatusFilter('REJECTED', this)">REJECTED</button>
+                                <button class="btn-filter" onclick="setStatusFilter('APPLIED', this)">APPLIED</button>
+                                <button class="btn-filter" onclick="setStatusFilter('IGNORED', this)">IGNORED</button>
                             </div>
                             <div style="display: flex; align-items: center; gap: 12px;">
                                 <span id="job-count" style="font-size: 12px; color: #64748b; font-weight: 600;">0 Jobs</span>
@@ -265,6 +284,18 @@ public class IndexHtmlHandler implements HttpHandler {
                                 <button class="btn-filter" onclick="setRegionFilter('AMERICAS', this)">AMERICAS / LATAM</button>
                                 <button class="btn-filter" onclick="setRegionFilter('USA', this)">USA / EUROPE</button>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Batch Mass Action Bar -->
+                    <div id="batch-action-bar" style="display: none; background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin-bottom: 12px; align-items: center; justify-content: space-between; flex-shrink: 0;">
+                        <div style="font-size: 12px; font-weight: 600; color: #334155;">
+                            <span id="selected-count">0</span> jobs selected
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn-action" style="background-color: #0284c7; border-color: #0284c7;" onclick="batchApplySelected()">🚀 Apply Selected</button>
+                            <button class="btn-action" style="background-color: #475569; border-color: #475569;" onclick="batchIgnoreSelected()">🚫 Ignore Selected</button>
+                            <button class="btn-action" style="background-color: #dc2626; border-color: #dc2626;" onclick="batchDeleteSelected()">🗑️ Delete Selected</button>
                         </div>
                     </div>
 
@@ -289,6 +320,7 @@ public class IndexHtmlHandler implements HttpHandler {
                 let activeStatusFilter = 'ALL';
                 let activeRegionFilter = 'ALL';
                 let selectedJobId = null;
+                let selectedJobIds = new Set();
 
                 document.addEventListener('DOMContentLoaded', () => {
                     loadProfile();
@@ -345,6 +377,15 @@ public class IndexHtmlHandler implements HttpHandler {
                     }
                 }
 
+                function getEffectiveStatus(item) {
+                    const job = item.job || item;
+                    const match = item.match || null;
+                    if (job.status && job.status !== 'DISCOVERED' && job.status !== 'EVALUATED') {
+                        return job.status;
+                    }
+                    return match ? match.status : (job.status || 'DISCOVERED');
+                }
+
                 function renderJobs() {
                     const listEl = document.getElementById('job-list');
                     const countEl = document.getElementById('job-count');
@@ -352,8 +393,11 @@ public class IndexHtmlHandler implements HttpHandler {
 
                     const filtered = rawEvaluatedItems.filter(item => {
                         const job = item.job || item;
-                        const match = item.match || null;
-                        const st = match ? (match.status || 'DISCOVERED') : (job.status || 'DISCOVERED');
+                        const st = getEffectiveStatus(item);
+
+                        if (st === 'DELETED' && activeStatusFilter !== 'DELETED') {
+                            return false;
+                        }
 
                         // Status Filter
                         if (activeStatusFilter !== 'ALL' && st.toUpperCase() !== activeStatusFilter) {
@@ -389,7 +433,7 @@ public class IndexHtmlHandler implements HttpHandler {
                     listEl.innerHTML = filtered.map(item => {
                         const job = item.job || item;
                         const match = item.match || null;
-                        const st = match ? match.status : (job.status || 'DISCOVERED');
+                        const st = getEffectiveStatus(item);
                         const score = match ? match.overallScore.toFixed(1) : null;
 
                         let badgeClass = 'badge-discovered';
@@ -397,22 +441,35 @@ public class IndexHtmlHandler implements HttpHandler {
                         if (st === 'RECOMMENDED') { badgeClass = 'badge-recommended'; badgeSymbol = '🟢'; }
                         else if (st === 'CONDITIONAL') { badgeClass = 'badge-conditional'; badgeSymbol = '🟡'; }
                         else if (st === 'REJECTED') { badgeClass = 'badge-rejected'; badgeSymbol = '🔴'; }
+                        else if (st === 'APPLIED') { badgeClass = 'badge-applied'; badgeSymbol = '🚀'; }
+                        else if (st === 'IGNORED') { badgeClass = 'badge-ignored'; badgeSymbol = '🚫'; }
 
                         const isSelected = job.id === selectedJobId;
+                        const isChecked = selectedJobIds.has(job.id);
                         const isContract = (job.title || '').toLowerCase().includes('contract') || (job.title || '').toLowerCase().includes('freelance');
                         const jobTypeLabel = isContract ? 'CONTRACT / FREELANCE' : 'FULL-TIME / PJ';
 
                         return `
                             <div class="job-card ${isSelected ? 'selected' : ''}" onclick="selectJob('${escapeHtml(job.id)}')">
                                 <div class="job-card-header">
-                                    <span class="job-card-title">${escapeHtml(job.title || 'Untitled')}</span>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" class="job-checkbox" value="${escapeHtml(job.id)}" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleJobSelection('${escapeHtml(job.id)}', this.checked)" />
+                                        <span class="job-card-title">${escapeHtml(job.title || 'Untitled')}</span>
+                                    </div>
                                     <span class="badge ${badgeClass}">${badgeSymbol} ${escapeHtml(st)} ${score ? `(${score}%)` : ''}</span>
                                 </div>
                                 <div class="job-card-company">${escapeHtml(job.company || 'Unknown')}</div>
-                                <div class="job-card-meta">
-                                    <span class="tag tag-region">📍 ${escapeHtml(job.location || 'Remote')}</span>
-                                    <span class="tag">💼 ${escapeHtml(job.seniorityLevel || 'N/A')}</span>
-                                    <span class="tag tag-contract">📄 ${jobTypeLabel}</span>
+                                <div class="job-card-meta" style="justify-content: space-between;">
+                                    <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
+                                        <span class="tag tag-region">📍 ${escapeHtml(job.location || 'Remote')}</span>
+                                        <span class="tag">💼 ${escapeHtml(job.seniorityLevel || 'N/A')}</span>
+                                        <span class="tag tag-contract">📄 ${jobTypeLabel}</span>
+                                    </div>
+                                    <div style="display: flex; gap: 4px;" onclick="event.stopPropagation();">
+                                        <button class="btn-card-action" title="Apply" onclick="applyToJob('${escapeHtml(job.id)}')">🚀 Apply</button>
+                                        <button class="btn-card-action" title="Ignore" onclick="ignoreJob('${escapeHtml(job.id)}')">🚫 Ignore</button>
+                                        <button class="btn-card-action btn-card-delete" title="Delete" onclick="deleteJob('${escapeHtml(job.id)}')">🗑️ Delete</button>
+                                    </div>
                                 </div>
                             </div>
                         `;
@@ -437,7 +494,7 @@ public class IndexHtmlHandler implements HttpHandler {
                     const matchedSkills = match && match.matchedSkills ? match.matchedSkills.map(s => s.name).join(', ') : 'None';
                     const missingSkills = match && match.missingRequiredSkills ? match.missingRequiredSkills.map(s => s.name).join(', ') : 'None';
                     const conflicts = match && match.conflicts ? match.conflicts.join('; ') : 'None';
-                    const st = match ? match.status : (job.status || 'DISCOVERED');
+                    const st = getEffectiveStatus(item);
 
                     detailEl.innerHTML = `
                         <div class="detail-title">${escapeHtml(job.title || 'Untitled')}</div>
@@ -470,6 +527,131 @@ public class IndexHtmlHandler implements HttpHandler {
                             </button>
                         </div>
                     `;
+                }
+
+                function toggleJobSelection(id, isChecked) {
+                    if (isChecked) {
+                        selectedJobIds.add(id);
+                    } else {
+                        selectedJobIds.delete(id);
+                    }
+                    updateBatchBar();
+                }
+
+                function updateBatchBar() {
+                    const bar = document.getElementById('batch-action-bar');
+                    const countEl = document.getElementById('selected-count');
+                    if (!bar || !countEl) return;
+                    if (selectedJobIds.size > 0) {
+                        bar.style.display = 'flex';
+                        countEl.textContent = selectedJobIds.size;
+                    } else {
+                        bar.style.display = 'none';
+                    }
+                }
+
+                async function applyToJob(id) {
+                    try {
+                        const res = await fetch('/api/jobs/status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ jobId: id, status: 'APPLIED' })
+                        });
+                        if (!res.ok) throw new Error('Status update failed');
+                        await loadJobs();
+                        if (selectedJobId === id) selectJob(id);
+                    } catch (err) {
+                        alert('Failed to update job status: ' + err.message);
+                    }
+                }
+
+                async function ignoreJob(id) {
+                    try {
+                        const res = await fetch('/api/jobs/status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ jobId: id, status: 'IGNORED' })
+                        });
+                        if (!res.ok) throw new Error('Status update failed');
+                        await loadJobs();
+                        if (selectedJobId === id) selectJob(id);
+                    } catch (err) {
+                        alert('Failed to ignore job: ' + err.message);
+                    }
+                }
+
+                async function deleteJob(id) {
+                    try {
+                        const res = await fetch('/api/jobs/status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ jobId: id, status: 'DELETED' })
+                        });
+                        if (!res.ok) throw new Error('Status update failed');
+                        selectedJobIds.delete(id);
+                        updateBatchBar();
+                        await loadJobs();
+                        if (selectedJobId === id) selectJob(id);
+                    } catch (err) {
+                        alert('Failed to delete job: ' + err.message);
+                    }
+                }
+
+                async function batchApplySelected() {
+                    if (selectedJobIds.size === 0) return;
+                    try {
+                        const ids = Array.from(selectedJobIds);
+                        const res = await fetch('/api/jobs/batch-status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ jobIds: ids, status: 'APPLIED' })
+                        });
+                        if (!res.ok) throw new Error('Batch status update failed');
+                        selectedJobIds.clear();
+                        updateBatchBar();
+                        await loadJobs();
+                        if (selectedJobId) selectJob(selectedJobId);
+                    } catch (err) {
+                        alert('Failed to apply selected jobs: ' + err.message);
+                    }
+                }
+
+                async function batchIgnoreSelected() {
+                    if (selectedJobIds.size === 0) return;
+                    try {
+                        const ids = Array.from(selectedJobIds);
+                        const res = await fetch('/api/jobs/batch-status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ jobIds: ids, status: 'IGNORED' })
+                        });
+                        if (!res.ok) throw new Error('Batch status update failed');
+                        selectedJobIds.clear();
+                        updateBatchBar();
+                        await loadJobs();
+                        if (selectedJobId) selectJob(selectedJobId);
+                    } catch (err) {
+                        alert('Failed to ignore selected jobs: ' + err.message);
+                    }
+                }
+
+                async function batchDeleteSelected() {
+                    if (selectedJobIds.size === 0) return;
+                    try {
+                        const ids = Array.from(selectedJobIds);
+                        const res = await fetch('/api/jobs/batch-status', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ jobIds: ids, status: 'DELETED' })
+                        });
+                        if (!res.ok) throw new Error('Batch status update failed');
+                        selectedJobIds.clear();
+                        updateBatchBar();
+                        await loadJobs();
+                        if (selectedJobId) selectJob(selectedJobId);
+                    } catch (err) {
+                        alert('Failed to delete selected jobs: ' + err.message);
+                    }
                 }
 
                 async function generateCoverLetter(jobId) {

@@ -26,6 +26,9 @@ public class IndexHtmlHandlerTest extends TestCase {
             assertTrue(response.body().contains("pdf-file-input"));
             assertTrue(response.body().contains("Generate Cover Letter"));
             assertTrue(response.body().contains("copyCoverLetter"));
+            assertTrue(response.body().contains("APPLIED"));
+            assertTrue(response.body().contains("IGNORED"));
+            assertTrue(response.body().contains("batchApplySelected"));
         } finally {
             server.stop();
         }
