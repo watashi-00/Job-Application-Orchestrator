@@ -7,12 +7,14 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 public class SkillExtractor {
 
     private static final Map<Pattern, Skill> SKILL_PATTERNS = new LinkedHashMap<>();
     private static final Map<String, SkillCategory> KNOWN_TECH_SKILLS = new LinkedHashMap<>();
+    private static final Map<String, Pattern> TERM_PATTERN_CACHE = new ConcurrentHashMap<>();
 
     private static final Pattern PRINCIPAL_PATTERN =
             Pattern.compile("\\b(principal|architect)\\b", Pattern.CASE_INSENSITIVE);
@@ -33,6 +35,7 @@ public class SkillExtractor {
         KNOWN_TECH_SKILLS.put("Node.js", SkillCategory.LANGUAGES_FRAMEWORKS);
         KNOWN_TECH_SKILLS.put("Go", SkillCategory.LANGUAGES_FRAMEWORKS);
         KNOWN_TECH_SKILLS.put("Rust", SkillCategory.LANGUAGES_FRAMEWORKS);
+        KNOWN_TECH_SKILLS.put("Ruby on Rails", SkillCategory.LANGUAGES_FRAMEWORKS);
         KNOWN_TECH_SKILLS.put("Docker", SkillCategory.DEVOPS_CLOUD);
         KNOWN_TECH_SKILLS.put("Kubernetes", SkillCategory.DEVOPS_CLOUD);
         KNOWN_TECH_SKILLS.put("AWS", SkillCategory.DEVOPS_CLOUD);
@@ -48,6 +51,14 @@ public class SkillExtractor {
             String skillName = entry.getKey();
             Pattern pattern = Pattern.compile("\\b" + Pattern.quote(skillName.toLowerCase()) + "\\b");
             SKILL_PATTERNS.put(pattern, new Skill(skillName, entry.getValue(), 0));
+        }
+
+        SkillDictionary defaultDict = SkillDictionary.defaultDictionary();
+        Set<String> defaultTerms = new HashSet<>(defaultDict.getAliasMap().keySet());
+        defaultTerms.addAll(defaultDict.getAliasMap().values());
+        for (String term : defaultTerms) {
+            String lower = term.toLowerCase();
+            TERM_PATTERN_CACHE.put(lower, Pattern.compile("\\b" + Pattern.quote(lower) + "\\b"));
         }
     }
 
@@ -78,7 +89,7 @@ public class SkillExtractor {
         searchTerms.addAll(dict.getAliasMap().values());
 
         for (String term : searchTerms) {
-            Pattern pattern = Pattern.compile("\\b" + Pattern.quote(term.toLowerCase()) + "\\b");
+            Pattern pattern = getTermPattern(term);
             if (pattern.matcher(normalizedText).find()) {
                 String canonicalName = dict.resolveCanonical(term);
                 SkillCategory category = KNOWN_TECH_SKILLS.getOrDefault(canonicalName, SkillCategory.OTHER);
@@ -87,6 +98,11 @@ public class SkillExtractor {
         }
 
         return Set.copyOf(extracted);
+    }
+
+    private static Pattern getTermPattern(String term) {
+        String lower = term.toLowerCase();
+        return TERM_PATTERN_CACHE.computeIfAbsent(lower, t -> Pattern.compile("\\b" + Pattern.quote(t) + "\\b"));
     }
 
     public static SeniorityLevel inferSeniority(String title) {
