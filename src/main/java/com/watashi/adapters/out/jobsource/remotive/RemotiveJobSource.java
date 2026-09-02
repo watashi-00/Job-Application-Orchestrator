@@ -36,8 +36,6 @@ public class RemotiveJobSource implements JobSource {
     private static final Pattern TITLE_PATTERN = Pattern.compile("\"title\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
     private static final Pattern COMPANY_PATTERN =
             Pattern.compile("\"company_name\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
-    private static final Pattern DESCRIPTION_PATTERN =
-            Pattern.compile("\"description\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))", Pattern.DOTALL);
     private static final Pattern LOCATION_PATTERN =
             Pattern.compile("\"candidate_required_location\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
     private static final Pattern SALARY_PATTERN = Pattern.compile("\"salary\"\\s*:\\s*(?:\"(.*?)\"|([^,\\}\\s]+))");
@@ -96,7 +94,7 @@ public class RemotiveJobSource implements JobSource {
             String jobId = rawId.startsWith("remotive-") ? rawId : "remotive-" + rawId;
             String title = extractField(TITLE_PATTERN, objJson);
             String company = extractField(COMPANY_PATTERN, objJson);
-            String description = extractField(DESCRIPTION_PATTERN, objJson);
+            String description = extractDescription(objJson);
             String location = extractField(LOCATION_PATTERN, objJson);
             String salaryStr = extractField(SALARY_PATTERN, objJson);
             String url = extractField(URL_PATTERN, objJson);
@@ -191,6 +189,56 @@ public class RemotiveJobSource implements JobSource {
             }
         }
         return results;
+    }
+
+    private static String extractDescription(String objJson) {
+        int keyIdx = objJson.indexOf("\"description\"");
+        if (keyIdx == -1) {
+            return "";
+        }
+        int colonIdx = objJson.indexOf(':', keyIdx);
+        if (colonIdx == -1) {
+            return "";
+        }
+        int quoteStart = objJson.indexOf('"', colonIdx + 1);
+        if (quoteStart == -1) {
+            return "";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        boolean escape = false;
+        for (int i = quoteStart + 1; i < objJson.length(); i++) {
+            char c = objJson.charAt(i);
+            if (escape) {
+                sb.append(c);
+                escape = false;
+            } else if (c == '\\') {
+                escape = true;
+            } else if (c == '"') {
+                break;
+            } else {
+                sb.append(c);
+            }
+        }
+        String rawHtml = unescapeJson(sb.toString());
+        return stripHtml(rawHtml);
+    }
+
+    public static String stripHtml(String html) {
+        if (html == null || html.isBlank()) {
+            return "";
+        }
+        String clean = html.replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?i)</p>", "\n")
+                .replaceAll("(?i)</li>", "\n")
+                .replaceAll("<[^>]*>", "")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'");
+        return clean.strip();
     }
 
     private static String extractField(Pattern pattern, String objJson) {
