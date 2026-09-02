@@ -6,15 +6,23 @@ import java.net.http.HttpResponse;
 import java.util.concurrent.CompletableFuture;
 
 public class HttpEngine {
-    private static final HttpEngine INSTANCE = new HttpEngine();
+    private static final HttpEngine INSTANCE = new HttpEngine(
+            HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build());
     private final HttpClient httpClient;
 
-    private HttpEngine() {
-        httpClient =
-                HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
-    } // private constructor
+    protected HttpEngine() {
+        this.httpClient = null;
+    }
+
+    private HttpEngine(HttpClient httpClient) {
+        this.httpClient = httpClient;
+    }
 
     public static HttpEngine getInstance() {
+        return INSTANCE;
+    }
+
+    public static HttpEngine createDefault() {
         return INSTANCE;
     }
 

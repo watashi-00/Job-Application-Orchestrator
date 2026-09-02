@@ -1,0 +1,235 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Job Application Orchestrator API",
+    "description": "API Specification for Job Application Orchestrator including Agentic Intelligence Engine, LLM Chunking, Email Correlation, and Candidate Profile Management.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080",
+      "description": "Local Dashboard Server"
+    }
+  ],
+  "paths": {
+    "/api/agent/chat": {
+      "post": {
+        "summary": "Send a chat message to the Agentic Intelligence Engine",
+        "operationId": "agentChat",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "example": "Summarize active interview invites"
+                  },
+                  "context": {
+                    "type": "string"
+                  }
+                },
+                "required": ["message"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Agent Chat Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "response": {
+                      "type": "string"
+                    },
+                    "toolsExecuted": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/agent/config": {
+      "get": {
+        "summary": "Get current LLM Agent Configuration",
+        "operationId": "getAgentConfig",
+        "responses": {
+          "200": {
+            "description": "Current Configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConfig"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update LLM Agent Configuration",
+        "operationId": "updateAgentConfig",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration Updated Successfully"
+          }
+        }
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "summary": "List discovered and evaluated job opportunities",
+        "operationId": "getJobs",
+        "responses": {
+          "200": {
+            "description": "List of job opportunities",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Trigger multi-source job discovery",
+        "operationId": "discoverJobs",
+        "responses": {
+          "200": {
+            "description": "Job discovery executed successfully"
+          }
+        }
+      }
+    },
+    "/api/inbox": {
+      "get": {
+        "summary": "List received recruiter emails",
+        "operationId": "getInbox",
+        "responses": {
+          "200": {
+            "description": "List of recruiter email messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Ingest or sync recruiter inbox",
+        "operationId": "syncInbox",
+        "responses": {
+          "200": {
+            "description": "Inbox synced successfully"
+          }
+        }
+      }
+    },
+    "/api/profile": {
+      "get": {
+        "summary": "Get candidate profile",
+        "operationId": "getProfile",
+        "responses": {
+          "200": {
+            "description": "Candidate profile data"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update candidate profile",
+        "operationId": "updateProfile",
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully"
+          }
+        }
+      }
+    },
+    "/api/tags": {
+      "get": {
+        "summary": "Get custom candidate tags",
+        "operationId": "getCustomTags",
+        "responses": {
+          "200": {
+            "description": "List of custom tags"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a custom tag",
+        "operationId": "createCustomTag",
+        "responses": {
+          "200": {
+            "description": "Tag created successfully"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentConfig": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "example": "ollama"
+          },
+          "ollamaUrl": {
+            "type": "string",
+            "example": "http://localhost:11434"
+          },
+          "modelName": {
+            "type": "string",
+            "example": "llama3"
+          },
+          "modelTier": {
+            "type": "string",
+            "enum": ["SMALL", "MEDIUM", "LARGE"],
+            "example": "SMALL"
+          },
+          "apiKey": {
+            "type": "string"
+          },
+          "customChunkSize": {
+            "type": "integer",
+            "example": 0
+          }
+        }
+      }
+    }
+  }
+}
