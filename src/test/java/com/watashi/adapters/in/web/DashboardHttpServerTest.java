@@ -173,13 +173,13 @@ public class DashboardHttpServerTest extends TestCase {
         HttpResponse<String> putJobsResp = client.send(putJobsReq, HttpResponse.BodyHandlers.ofString());
         assertEquals(405, putJobsResp.statusCode());
 
-        // POST /api/profile -> 405
-        HttpRequest postProfileReq = HttpRequest.newBuilder()
+        // PUT /api/profile -> 405
+        HttpRequest putProfileReq = HttpRequest.newBuilder()
                 .uri(URI.create("http://localhost:" + port + "/api/profile"))
-                .POST(HttpRequest.BodyPublishers.noBody())
+                .PUT(HttpRequest.BodyPublishers.noBody())
                 .build();
-        HttpResponse<String> postProfileResp = client.send(postProfileReq, HttpResponse.BodyHandlers.ofString());
-        assertEquals(405, postProfileResp.statusCode());
+        HttpResponse<String> putProfileResp = client.send(putProfileReq, HttpResponse.BodyHandlers.ofString());
+        assertEquals(405, putProfileResp.statusCode());
     }
 
     public void testServerLifecycleShutdown() throws Exception {
