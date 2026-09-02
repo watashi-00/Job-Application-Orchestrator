@@ -32,7 +32,9 @@ public class DashboardHttpServer {
         try {
             this.server = HttpServer.create(new InetSocketAddress(port), 0);
             this.server.createContext("/", new IndexHtmlHandler());
-            this.server.createContext("/api/jobs", new JobApiHandler(discoverUseCase, profileUseCase, getJobsUseCase));
+            this.server.createContext(
+                    "/api/jobs",
+                    new JobApiHandler(discoverUseCase, assessUseCase, profileUseCase, null, getJobsUseCase));
             this.server.createContext("/api/profile", new ProfileApiHandler(profileUseCase));
             this.executor = Executors.newFixedThreadPool(4);
             this.server.setExecutor(this.executor);

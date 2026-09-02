@@ -6,7 +6,10 @@ import com.sun.net.httpserver.HttpHandler;
 import com.watashi.adapters.out.persistence.json.JsonStorageUtils;
 import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.job.JobOpportunity;
+import com.watashi.core.domain.matching.EvaluatedJobDto;
 import com.watashi.core.domain.matching.FilterConfiguration;
+import com.watashi.core.domain.matching.MatchResult;
+import com.watashi.core.ports.in.AssessJobCompatibilityUseCase;
 import com.watashi.core.ports.in.DiscoverJobsUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.ManageCandidateProfileUseCase;
@@ -17,6 +20,8 @@ import com.watashi.core.ports.out.JobRepository;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,16 +30,19 @@ public class JobApiHandler implements HttpHandler {
     private static final ObjectMapper MAPPER = JsonStorageUtils.createObjectMapper();
 
     private final DiscoverJobsUseCase discoverUseCase;
+    private final AssessJobCompatibilityUseCase assessUseCase;
     private final ManageCandidateProfileUseCase profileUseCase;
     private final ManageFilterConfigUseCase filterUseCase;
     private final GetJobsUseCase getJobsUseCase;
 
     public JobApiHandler(
             DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
             ManageCandidateProfileUseCase profileUseCase,
             ManageFilterConfigUseCase filterUseCase,
             GetJobsUseCase getJobsUseCase) {
         this.discoverUseCase = discoverUseCase;
+        this.assessUseCase = assessUseCase;
         this.profileUseCase = profileUseCase;
         this.filterUseCase = filterUseCase;
         this.getJobsUseCase = getJobsUseCase;
@@ -43,8 +51,16 @@ public class JobApiHandler implements HttpHandler {
     public JobApiHandler(
             DiscoverJobsUseCase discoverUseCase,
             ManageCandidateProfileUseCase profileUseCase,
+            ManageFilterConfigUseCase filterUseCase,
             GetJobsUseCase getJobsUseCase) {
-        this(discoverUseCase, profileUseCase, (ManageFilterConfigUseCase) null, getJobsUseCase);
+        this(discoverUseCase, null, profileUseCase, filterUseCase, getJobsUseCase);
+    }
+
+    public JobApiHandler(
+            DiscoverJobsUseCase discoverUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
+            GetJobsUseCase getJobsUseCase) {
+        this(discoverUseCase, null, profileUseCase, null, getJobsUseCase);
     }
 
     public JobApiHandler(
@@ -54,6 +70,7 @@ public class JobApiHandler implements HttpHandler {
             JobRepository jobRepository) {
         this(
                 discoverUseCase,
+                null,
                 profileRepository != null
                         ? new ManageCandidateProfileUseCase() {
                             @Override
@@ -113,7 +130,27 @@ public class JobApiHandler implements HttpHandler {
         }
 
         List<JobOpportunity> jobs = getJobsUseCase != null ? getJobsUseCase.getJobs() : List.of();
-        byte[] responseBytes = MAPPER.writeValueAsString(jobs).getBytes(StandardCharsets.UTF_8);
+        CandidateProfile profile =
+                profileUseCase != null ? profileUseCase.getProfile().orElse(null) : null;
+        FilterConfiguration config =
+                filterUseCase != null ? filterUseCase.getConfig() : FilterConfiguration.defaultConfig();
+
+        byte[] responseBytes;
+        if (assessUseCase != null && profile != null) {
+            List<EvaluatedJobDto> evaluated = new ArrayList<>();
+            for (JobOpportunity job : jobs) {
+                if (job != null) {
+                    MatchResult match = assessUseCase.evaluate(job, profile, config);
+                    evaluated.add(new EvaluatedJobDto(job, match));
+                }
+            }
+            evaluated.sort(Comparator.comparingDouble(
+                            (EvaluatedJobDto dto) -> dto.match().overallScore())
+                    .reversed());
+            responseBytes = MAPPER.writeValueAsString(evaluated).getBytes(StandardCharsets.UTF_8);
+        } else {
+            responseBytes = MAPPER.writeValueAsString(jobs).getBytes(StandardCharsets.UTF_8);
+        }
 
         exchange.getResponseHeaders().set("Content-Type", "application/json; charset=UTF-8");
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");

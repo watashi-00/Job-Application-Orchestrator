@@ -104,27 +104,51 @@ public class IndexHtmlHandler implements HttpHandler {
                     font-size: 12px;
                     border: 1px solid #e2e8f0;
                 }
+                .tag-matched { background-color: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; font-weight: 600; }
+                .tag-missing { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+                .tag-contract { background-color: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; font-weight: 600; }
+                .tag-region { background-color: #f8fafc; color: #475569; border: 1px solid #cbd5e1; }
+
                 .controls-bar {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 10px;
+                    margin-bottom: 12px;
+                    flex-shrink: 0;
+                }
+                .controls-row {
                     display: flex;
                     align-items: center;
                     justify-content: space-between;
                     gap: 12px;
-                    margin-bottom: 12px;
-                    flex-shrink: 0;
                 }
-                .filter-group { display: flex; gap: 4px; }
+                .search-input {
+                    width: 100%;
+                    padding: 7px 12px;
+                    font-size: 13px;
+                    border: 1px solid #cbd5e1;
+                    border-radius: 4px;
+                    outline: none;
+                    background-color: #ffffff;
+                    color: #0f172a;
+                    transition: border-color 0.15s ease;
+                }
+                .search-input:focus { border-color: #0f172a; }
+
+                .filter-group { display: flex; gap: 4px; flex-wrap: wrap; }
                 .btn-filter {
                     background-color: #ffffff;
                     border: 1px solid #e2e8f0;
                     color: #475569;
-                    padding: 6px 12px;
-                    font-size: 12px;
+                    padding: 5px 10px;
+                    font-size: 11px;
                     font-weight: 600;
                     border-radius: 4px;
                     cursor: pointer;
                 }
                 .btn-filter:hover { background-color: #f8fafc; color: #0f172a; }
                 .btn-filter.active { background-color: #0f172a; color: #ffffff; border-color: #0f172a; }
+
                 .btn-action {
                     background-color: #0f172a;
                     color: #ffffff;
@@ -137,9 +161,11 @@ public class IndexHtmlHandler implements HttpHandler {
                     display: inline-flex;
                     align-items: center;
                     gap: 6px;
+                    white-space: nowrap;
                 }
                 .btn-action:hover { background-color: #1e293b; }
                 .btn-action:disabled { opacity: 0.6; cursor: not-allowed; }
+
                 .job-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
                 .job-card {
                     background-color: #ffffff;
@@ -154,7 +180,8 @@ public class IndexHtmlHandler implements HttpHandler {
                 .job-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
                 .job-card-title { font-weight: 600; font-size: 14px; color: #0f172a; }
                 .job-card-company { font-size: 12px; color: #64748b; margin-bottom: 8px; }
-                .job-card-meta { display: flex; gap: 12px; font-size: 12px; color: #475569; }
+                .job-card-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11px; color: #475569; }
+
                 .badge {
                     display: inline-flex;
                     align-items: center;
@@ -171,6 +198,7 @@ public class IndexHtmlHandler implements HttpHandler {
                 .badge-conditional { background-color: #fffbeb; color: #d97706; border: 1px solid #fef08a; }
                 .badge-rejected { background-color: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
                 .badge-discovered { background-color: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; }
+
                 .detail-placeholder { color: #94a3b8; font-size: 13px; text-align: center; margin-top: 40px; }
                 .detail-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
                 .detail-company { font-size: 13px; color: #64748b; margin-bottom: 12px; }
@@ -178,7 +206,7 @@ public class IndexHtmlHandler implements HttpHandler {
                 .detail-meta-table td { padding: 4px 0; font-size: 12px; }
                 .detail-meta-table td.label { color: #64748b; width: 90px; }
                 .detail-meta-table td.val { font-weight: 500; color: #0f172a; }
-                .detail-desc { font-size: 12px; color: #334155; line-height: 1.6; font-family: inherit; margin-top: 8px; max-height: 280px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 4px; background: #fafafa; }
+                .detail-desc { font-size: 12px; color: #334155; line-height: 1.6; font-family: inherit; margin-top: 8px; max-height: 280px; overflow-y: auto; border: 1px solid #e2e8f0; padding: 10px; border-radius: 4px; background: #fafafa; white-space: pre-line; }
                 .detail-link { display: inline-block; margin-top: 12px; color: #2563eb; text-decoration: none; font-size: 12px; font-weight: 600; }
                 .detail-link:hover { text-decoration: underline; }
             </style>
@@ -187,7 +215,7 @@ public class IndexHtmlHandler implements HttpHandler {
             <header class="navbar">
                 <div class="navbar-brand">
                     <span>JOB APPLICATION ORCHESTRATOR</span>
-                    <span class="navbar-tag">NAVBAR</span>
+                    <span class="navbar-tag">DASHBOARD</span>
                 </div>
                 <div id="status-indicator" style="font-size: 12px; color: #94a3b8;">Dashboard Live</div>
             </header>
@@ -206,19 +234,36 @@ public class IndexHtmlHandler implements HttpHandler {
                 <!-- Column 2: Job Feed & Controls (1fr) -->
                 <div class="panel" style="padding: 16px;">
                     <div class="controls-bar">
-                        <div class="filter-group">
-                            <button class="btn-filter active" onclick="setFilter('ALL', this)">ALL</button>
-                            <button class="btn-filter" onclick="setFilter('RECOMMENDED', this)">RECOMMENDED</button>
-                            <button class="btn-filter" onclick="setFilter('CONDITIONAL', this)">CONDITIONAL</button>
-                            <button class="btn-filter" onclick="setFilter('REJECTED', this)">REJECTED</button>
+                        <!-- Search Bar -->
+                        <input id="search-input" class="search-input" type="text" placeholder="🔍 Search title, company, skills, or description..." oninput="renderJobs()" />
+
+                        <div class="controls-row">
+                            <div class="filter-group">
+                                <button class="btn-filter active" onclick="setStatusFilter('ALL', this)">ALL</button>
+                                <button class="btn-filter" onclick="setStatusFilter('RECOMMENDED', this)">RECOMMENDED</button>
+                                <button class="btn-filter" onclick="setStatusFilter('CONDITIONAL', this)">CONDITIONAL</button>
+                                <button class="btn-filter" onclick="setStatusFilter('REJECTED', this)">REJECTED</button>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <span id="job-count" style="font-size: 12px; color: #64748b; font-weight: 600;">0 Jobs</span>
+                                <button id="btn-discover" class="btn-action" onclick="discoverJobs()">
+                                    <span>Discover Jobs</span>
+                                </button>
+                            </div>
                         </div>
-                        <div style="display: flex; align-items: center; gap: 12px;">
-                            <span id="job-count" style="font-size: 12px; color: #64748b; font-weight: 600;">0 Jobs</span>
-                            <button id="btn-discover" class="btn-action" onclick="discoverJobs()">
-                                <span>Discover Jobs</span>
-                            </button>
+
+                        <!-- Region / Location Filter Row -->
+                        <div class="controls-row" style="margin-top: 4px;">
+                            <div class="filter-group">
+                                <span style="font-size: 11px; color: #64748b; font-weight: 600; display: flex; align-items: center; margin-right: 4px;">REGION:</span>
+                                <button class="btn-filter active" onclick="setRegionFilter('ALL', this)">ALL REGIONS</button>
+                                <button class="btn-filter" onclick="setRegionFilter('WORLDWIDE', this)">WORLDWIDE</button>
+                                <button class="btn-filter" onclick="setRegionFilter('AMERICAS', this)">AMERICAS / LATAM</button>
+                                <button class="btn-filter" onclick="setRegionFilter('USA', this)">USA / EUROPE</button>
+                            </div>
                         </div>
                     </div>
+
                     <div class="job-list" id="job-list">
                         <div style="text-align: center; color: #94a3b8; padding: 40px;">Loading job opportunities...</div>
                     </div>
@@ -236,8 +281,9 @@ public class IndexHtmlHandler implements HttpHandler {
             </div>
 
             <script>
-                let allJobs = [];
-                let activeFilter = 'ALL';
+                let rawEvaluatedItems = [];
+                let activeStatusFilter = 'ALL';
+                let activeRegionFilter = 'ALL';
                 let selectedJobId = null;
 
                 document.addEventListener('DOMContentLoaded', () => {
@@ -288,7 +334,7 @@ public class IndexHtmlHandler implements HttpHandler {
                     try {
                         const res = await fetch('/api/jobs');
                         if (!res.ok) throw new Error('Failed to fetch jobs');
-                        allJobs = await res.json();
+                        rawEvaluatedItems = await res.json();
                         renderJobs();
                     } catch (err) {
                         listEl.innerHTML = `<div style="text-align: center; color: #dc2626; padding: 40px;">Error loading jobs: ${escapeHtml(err.message)}</div>`;
@@ -298,22 +344,50 @@ public class IndexHtmlHandler implements HttpHandler {
                 function renderJobs() {
                     const listEl = document.getElementById('job-list');
                     const countEl = document.getElementById('job-count');
+                    const searchQuery = (document.getElementById('search-input').value || '').toLowerCase().trim();
 
-                    const filtered = allJobs.filter(job => {
-                        const st = (job.status || 'DISCOVERED').toUpperCase();
-                        if (activeFilter === 'ALL') return true;
-                        return st === activeFilter;
+                    const filtered = rawEvaluatedItems.filter(item => {
+                        const job = item.job || item;
+                        const match = item.match || null;
+                        const st = match ? (match.status || 'DISCOVERED') : (job.status || 'DISCOVERED');
+
+                        // Status Filter
+                        if (activeStatusFilter !== 'ALL' && st.toUpperCase() !== activeStatusFilter) {
+                            return false;
+                        }
+
+                        // Region Filter
+                        const loc = (job.location || '').toUpperCase();
+                        if (activeRegionFilter === 'WORLDWIDE' && !loc.includes('WORLDWIDE')) return false;
+                        if (activeRegionFilter === 'AMERICAS' && !(loc.includes('AMERICA') || loc.includes('LATAM') || loc.includes('US'))) return false;
+                        if (activeRegionFilter === 'USA' && !(loc.includes('USA') || loc.includes('US') || loc.includes('EUROPE'))) return false;
+
+                        // Keyword Search Filter
+                        if (searchQuery.length > 0) {
+                            const title = (job.title || '').toLowerCase();
+                            const company = (job.company || '').toLowerCase();
+                            const desc = (job.description || '').toLowerCase();
+                            const skills = (job.requiredSkills || []).map(s => typeof s === 'string' ? s : s.name).join(' ').toLowerCase();
+
+                            return title.includes(searchQuery) || company.includes(searchQuery) || desc.includes(searchQuery) || skills.includes(searchQuery);
+                        }
+
+                        return true;
                     });
 
                     countEl.textContent = `${filtered.length} Jobs`;
 
                     if (filtered.length === 0) {
-                        listEl.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 40px;">No jobs found matching filter.</div>';
+                        listEl.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 40px;">No jobs found matching criteria.</div>';
                         return;
                     }
 
-                    listEl.innerHTML = filtered.map(job => {
-                        const st = (job.status || 'DISCOVERED').toUpperCase();
+                    listEl.innerHTML = filtered.map(item => {
+                        const job = item.job || item;
+                        const match = item.match || null;
+                        const st = match ? match.status : (job.status || 'DISCOVERED');
+                        const score = match ? match.overallScore.toFixed(1) : null;
+
                         let badgeClass = 'badge-discovered';
                         let badgeSymbol = '⚪';
                         if (st === 'RECOMMENDED') { badgeClass = 'badge-recommended'; badgeSymbol = '🟢'; }
@@ -321,18 +395,20 @@ public class IndexHtmlHandler implements HttpHandler {
                         else if (st === 'REJECTED') { badgeClass = 'badge-rejected'; badgeSymbol = '🔴'; }
 
                         const isSelected = job.id === selectedJobId;
+                        const isContract = (job.title || '').toLowerCase().includes('contract') || (job.title || '').toLowerCase().includes('freelance');
+                        const jobTypeLabel = isContract ? 'CONTRACT / FREELANCE' : 'FULL-TIME / PJ';
 
                         return `
                             <div class="job-card ${isSelected ? 'selected' : ''}" onclick="selectJob('${escapeHtml(job.id)}')">
                                 <div class="job-card-header">
                                     <span class="job-card-title">${escapeHtml(job.title || 'Untitled')}</span>
-                                    <span class="badge ${badgeClass}">${badgeSymbol} ${escapeHtml(st)}</span>
+                                    <span class="badge ${badgeClass}">${badgeSymbol} ${escapeHtml(st)} ${score ? `(${score}%)` : ''}</span>
                                 </div>
                                 <div class="job-card-company">${escapeHtml(job.company || 'Unknown')}</div>
                                 <div class="job-card-meta">
-                                    <span>📍 ${escapeHtml(job.location || 'Remote')}</span>
-                                    <span>💼 ${escapeHtml(job.seniorityLevel || 'N/A')}</span>
-                                    <span>🌐 ${escapeHtml(job.workMode || 'N/A')}</span>
+                                    <span class="tag tag-region">📍 ${escapeHtml(job.location || 'Remote')}</span>
+                                    <span class="tag">💼 ${escapeHtml(job.seniorityLevel || 'N/A')}</span>
+                                    <span class="tag tag-contract">📄 ${jobTypeLabel}</span>
                                 </div>
                             </div>
                         `;
@@ -342,42 +418,54 @@ public class IndexHtmlHandler implements HttpHandler {
                 function selectJob(id) {
                     selectedJobId = id;
                     renderJobs();
-                    const job = allJobs.find(j => j.id === id);
+                    const item = rawEvaluatedItems.find(i => (i.job ? i.job.id : i.id) === id);
                     const detailEl = document.getElementById('detail-panel');
-                    if (!job) {
+                    if (!item) {
                         detailEl.innerHTML = '<div class="detail-placeholder">Select a job card to view full details</div>';
                         return;
                     }
 
+                    const job = item.job || item;
+                    const match = item.match || null;
+
                     const reqSkills = (job.requiredSkills || []).map(s => typeof s === 'string' ? s : s.name).join(', ') || 'None listed';
                     const optSkills = (job.optionalSkills || []).map(s => typeof s === 'string' ? s : s.name).join(', ') || 'None listed';
-                    const st = (job.status || 'DISCOVERED').toUpperCase();
-                    const rawDesc = job.description || 'No description available.';
-                    const cleanDesc = escapeHtml(rawDesc).replace(/\\n/g, '<br>');
+                    const matchedSkills = match && match.matchedSkills ? match.matchedSkills.map(s => s.name).join(', ') : 'None';
+                    const missingSkills = match && match.missingRequiredSkills ? match.missingRequiredSkills.map(s => s.name).join(', ') : 'None';
+                    const conflicts = match && match.conflicts ? match.conflicts.join('; ') : 'None';
+                    const st = match ? match.status : (job.status || 'DISCOVERED');
 
                     detailEl.innerHTML = `
                         <div class="detail-title">${escapeHtml(job.title || 'Untitled')}</div>
                         <div class="detail-company">${escapeHtml(job.company || 'Unknown')}</div>
 
                         <table class="detail-meta-table">
-                            <tr><td class="label">Status</td><td class="val">${escapeHtml(st)}</td></tr>
+                            <tr><td class="label">Status</td><td class="val">${escapeHtml(st)} ${match ? `(${match.overallScore.toFixed(1)}%)` : ''}</td></tr>
                             <tr><td class="label">Seniority</td><td class="val">${escapeHtml(job.seniorityLevel || 'N/A')}</td></tr>
                             <tr><td class="label">Work Mode</td><td class="val">${escapeHtml(job.workMode || 'N/A')}</td></tr>
                             <tr><td class="label">Location</td><td class="val">${escapeHtml(job.location || 'N/A')}</td></tr>
-                            <tr><td class="label">Req. Skills</td><td class="val">${escapeHtml(reqSkills)}</td></tr>
-                            <tr><td class="label">Opt. Skills</td><td class="val">${escapeHtml(optSkills)}</td></tr>
+                            <tr><td class="label">Matched</td><td class="val" style="color: #16a34a; font-weight: 600;">${escapeHtml(matchedSkills)}</td></tr>
+                            <tr><td class="label">Missing</td><td class="val" style="color: #dc2626;">${escapeHtml(missingSkills)}</td></tr>
+                            ${conflicts !== 'None' ? `<tr><td class="label">Conflicts</td><td class="val" style="color: #d97706;">${escapeHtml(conflicts)}</td></tr>` : ''}
                         </table>
 
                         <div class="section-label">Job Description</div>
-                        <div class="detail-desc">${cleanDesc}</div>
+                        <div class="detail-desc">${escapeHtml(job.description || 'No description available.')}</div>
 
                         ${job.sourceUrl ? `<a class="detail-link" href="${escapeHtml(job.sourceUrl)}" target="_blank">View Original Post ↗</a>` : ''}
                     `;
                 }
 
-                function setFilter(filter, btn) {
-                    activeFilter = filter;
-                    document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                function setStatusFilter(filter, btn) {
+                    activeStatusFilter = filter;
+                    btn.parentElement.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    renderJobs();
+                }
+
+                function setRegionFilter(region, btn) {
+                    activeRegionFilter = region;
+                    btn.parentElement.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     renderJobs();
                 }
