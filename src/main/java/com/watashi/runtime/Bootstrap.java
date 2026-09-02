@@ -6,6 +6,8 @@ import com.watashi.adapters.out.ingestor.pdf.PdfCandidateIngestor;
 import com.watashi.adapters.out.jobsource.arbeitnow.ArbeitnowJobSource;
 import com.watashi.adapters.out.jobsource.jobicy.JobicyJobSource;
 import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
+import com.watashi.adapters.out.llm.OllamaLlmProvider;
+import com.watashi.adapters.out.persistence.json.JsonAgentConfigRepository;
 import com.watashi.adapters.out.persistence.json.JsonCandidateCredentialsRepository;
 import com.watashi.adapters.out.persistence.json.JsonCandidateProfileRepository;
 import com.watashi.adapters.out.persistence.json.JsonCustomTagRepository;
@@ -15,6 +17,9 @@ import com.watashi.adapters.out.persistence.json.JsonJobRepository;
 import com.watashi.adapters.out.persistence.json.JsonRecruiterEmailRepository;
 import com.watashi.adapters.out.persistence.json.JsonResumePdfStorageRepository;
 import com.watashi.adapters.out.persistence.json.JsonSkillDictionaryRepository;
+import com.watashi.core.agent.AgentConfig;
+import com.watashi.core.agent.AgentToolRegistry;
+import com.watashi.core.agent.DocumentChunker;
 import com.watashi.core.domain.candidate.CandidatePreferences;
 import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.common.SalaryRange;
@@ -36,6 +41,7 @@ import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
 import com.watashi.core.ports.in.ManageCustomTagsUseCase;
 import com.watashi.core.ports.in.SyncRecruiterInboxUseCase;
 import com.watashi.core.ports.in.TrackJobApplicationUseCase;
+import com.watashi.core.ports.out.AgentConfigRepository;
 import com.watashi.core.ports.out.CandidateCredentialsRepository;
 import com.watashi.core.ports.out.CandidateProfileIngestor;
 import com.watashi.core.ports.out.CandidateProfileRepository;
@@ -44,9 +50,11 @@ import com.watashi.core.ports.out.FilterConfigRepository;
 import com.watashi.core.ports.out.JobApplicationRepository;
 import com.watashi.core.ports.out.JobRepository;
 import com.watashi.core.ports.out.JobSource;
+import com.watashi.core.ports.out.LlmProviderPort;
 import com.watashi.core.ports.out.RecruiterEmailRepository;
 import com.watashi.core.ports.out.ResumePdfStorageRepository;
 import com.watashi.core.ports.out.SkillDictionaryRepository;
+import com.watashi.core.service.DefaultAgentOrchestratorService;
 import com.watashi.core.service.DefaultAssessJobCompatibilityService;
 import com.watashi.core.service.DefaultCoverLetterService;
 import com.watashi.core.service.DefaultDiscoverJobsService;
@@ -197,6 +205,20 @@ public class Bootstrap {
         GetJobsUseCase getJobsUseCase = jobRepository::findAll;
         GenerateCoverLetterUseCase coverLetterService = new DefaultCoverLetterService();
         GetSystemLogsUseCase systemLogsService = new DefaultGetSystemLogsService(dispatchUseCase, inboxService);
+
+        AgentConfigRepository agentConfigRepo = new JsonAgentConfigRepository();
+        AgentConfig agentConfig = agentConfigRepo.loadConfig();
+        LlmProviderPort llmProvider = new OllamaLlmProvider();
+        AgentToolRegistry agentToolRegistry = new AgentToolRegistry(
+                jobRepository,
+                emailRepository,
+                candidateRepository,
+                filterConfigRepository,
+                dictionaryRepository,
+                new DocumentChunker());
+        DefaultAgentOrchestratorService agentService =
+                new DefaultAgentOrchestratorService(agentConfigRepo, llmProvider, agentToolRegistry);
+
         DashboardHttpServer server = new DashboardHttpServer(
                 8080,
                 discoverUseCase,
@@ -212,7 +234,9 @@ public class Bootstrap {
                 inboxService,
                 tagsService,
                 pdfRepository,
-                systemLogsService);
+                systemLogsService,
+                agentService,
+                agentService);
         server.start();
         System.out.println("🌐 Web Dashboard live at http://localhost:8080");
     }
@@ -226,11 +250,11 @@ public class Bootstrap {
                 stream.beginText();
                 stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD), 14);
                 stream.newLineAtOffset(50, 700);
-                stream.showText("RODRIGO A. S AMARANTE - Backend Software Engineer");
+                stream.showText("Candidate Profile - Senior Backend Software Engineer");
                 stream.setFont(new PDType1Font(Standard14Fonts.FontName.HELVETICA), 11);
                 stream.newLineAtOffset(0, -25);
                 stream.showText(
-                        "Engenheiro de Software Backend especializado em Java 21, Spring Boot, concorrência avançada, Virtual Threads.");
+                        "Backend Software Engineer specialized in Java 21, Spring Boot, distributed systems, Virtual Threads.");
                 stream.newLineAtOffset(0, -20);
                 stream.showText(
                         "Tecnologias: Java, Spring Boot, PostgreSQL, Docker, REST, WebSockets, Redis, Kafka, RabbitMQ, TypeScript, React, Linux, SQLite, Microservices, gRPC.");

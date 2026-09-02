@@ -4,6 +4,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import junit.framework.TestCase;
 
 public class IndexHtmlHandlerTest extends TestCase {
@@ -20,19 +22,30 @@ public class IndexHtmlHandlerTest extends TestCase {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             assertEquals(200, response.statusCode());
-            assertTrue(response.body().contains("JOB APPLICATION ORCHESTRATOR"));
-            assertTrue(response.body().contains("DASHBOARD"));
-            assertTrue(response.body().contains("Upload Resume PDF"));
-            assertTrue(response.body().contains("pdf-file-input"));
-            assertTrue(response.body().contains("View Resume PDF"));
-            assertTrue(response.body().contains("pdf-modal"));
-            assertTrue(response.body().contains("Open in Gmail"));
-            assertTrue(response.body().contains("updateProfileSeniorities"));
-            assertTrue(response.body().contains("Generate Cover Letter"));
-            assertTrue(response.body().contains("copyCoverLetter"));
-            assertTrue(response.body().contains("APPLIED"));
-            assertTrue(response.body().contains("IGNORED"));
-            assertTrue(response.body().contains("batchApplySelected"));
+            String body = response.body();
+
+            assertTrue(body.contains("JOB APPLICATION ORCHESTRATOR"));
+            assertTrue(body.contains("DASHBOARD"));
+            assertTrue(body.contains("Upload Resume PDF"));
+            assertTrue(body.contains("pdf-file-input"));
+            assertTrue(body.contains("View Resume PDF"));
+            assertTrue(body.contains("pdf-modal"));
+            assertTrue(body.contains("Open in Gmail"));
+            assertTrue(body.contains("updateProfileSeniorities"));
+            assertTrue(body.contains("Generate Cover Letter"));
+            assertTrue(body.contains("copyCoverLetter"));
+            assertTrue(body.contains("APPLIED"));
+            assertTrue(body.contains("IGNORED"));
+            assertTrue(body.contains("batchApplySelected"));
+
+            // Agent Chat Panel & Config Modal presence
+            assertTrue(body.contains("agent-chat-panel"));
+            assertTrue(body.contains("agent-config-modal"));
+
+            // Emoji removal verification: ensure NO emoji characters exist in body
+            Pattern emojiPattern = Pattern.compile("[\uD83C-\uD83E][\uDC00-\uDFFF]");
+            Matcher matcher = emojiPattern.matcher(body);
+            assertFalse("HTML should contain 0 emojis", matcher.find());
         } finally {
             server.stop();
         }

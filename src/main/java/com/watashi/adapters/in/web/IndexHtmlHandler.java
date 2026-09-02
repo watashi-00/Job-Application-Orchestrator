@@ -14,7 +14,7 @@ import java.nio.charset.StandardCharsets;
 
 public class IndexHtmlHandler implements HttpHandler {
 
-    private static final String HTML_CONTENT = """
+    private static final String HTML_PART_1 = """
         <!DOCTYPE html>
         <html lang="en">
         <head>
@@ -62,7 +62,7 @@ public class IndexHtmlHandler implements HttpHandler {
                 }
                 .container {
                     display: grid;
-                    grid-template-columns: 240px 1fr 320px;
+                    grid-template-columns: 240px 1fr 340px;
                     gap: 16px;
                     padding: 16px;
                     flex: 1;
@@ -228,13 +228,19 @@ public class IndexHtmlHandler implements HttpHandler {
                 .detail-link:hover { text-decoration: underline; }
             </style>
         </head>
+        """;
+
+    private static final String HTML_PART_2 = """
         <body>
             <header class="navbar">
                 <div class="navbar-brand">
                     <span>JOB APPLICATION ORCHESTRATOR</span>
                     <span class="navbar-tag">DASHBOARD</span>
                 </div>
-                <div id="status-indicator" style="font-size: 12px; color: #94a3b8;">Dashboard Live</div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button class="btn-filter" style="color: #ffffff; border-color: #334155; background: #1e293b;" onclick="openAgentConfigModal()">LLM Settings</button>
+                    <div id="status-indicator" style="font-size: 12px; color: #94a3b8;">Dashboard Live</div>
+                </div>
             </header>
 
             <div class="container">
@@ -247,9 +253,9 @@ public class IndexHtmlHandler implements HttpHandler {
                         <div class="profile-sub">Loading profile...</div>
                     </div>
                     <div style="padding: 0 16px 16px 16px; display: flex; flex-direction: column; gap: 8px;">
-                        <button id="btn-view-pdf" class="btn-action" style="width: 100%; justify-content: center; background-color: #475569; border-color: #475569;" onclick="openPdfModal()"><span>👁️ View Resume PDF</span></button>
+                        <button id="btn-view-pdf" class="btn-action" style="width: 100%; justify-content: center; background-color: #475569; border-color: #475569;" onclick="openPdfModal()"><span>View Resume PDF</span></button>
                         <input type="file" id="pdf-file-input" accept=".pdf" style="display:none;" onchange="uploadPdfFile(this)" />
-                        <button id="btn-upload-pdf" class="btn-action" style="width: 100%; justify-content: center;" onclick="document.getElementById('pdf-file-input').click()"><span>📄 Upload Resume PDF</span></button>
+                        <button id="btn-upload-pdf" class="btn-action" style="width: 100%; justify-content: center;" onclick="document.getElementById('pdf-file-input').click()"><span>Upload Resume PDF</span></button>
                     </div>
                 </div>
 
@@ -260,7 +266,7 @@ public class IndexHtmlHandler implements HttpHandler {
                         <div id="tag-pills-bar" style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 4px;"></div>
 
                         <!-- Search Bar -->
-                        <input id="search-input" class="search-input" type="text" placeholder="🔍 Search title, company, skills, or description..." oninput="renderJobs()" />
+                        <input id="search-input" class="search-input" type="text" placeholder="Search title, company, skills, or description..." oninput="renderJobs()" />
 
                         <div class="controls-row">
                             <div class="filter-group">
@@ -297,9 +303,9 @@ public class IndexHtmlHandler implements HttpHandler {
                             <span id="selected-count">0</span> jobs selected
                         </div>
                         <div style="display: flex; gap: 8px;">
-                            <button class="btn-action" style="background-color: #0284c7; border-color: #0284c7;" onclick="batchApplySelected()">🚀 Apply Selected</button>
-                            <button class="btn-action" style="background-color: #475569; border-color: #475569;" onclick="batchIgnoreSelected()">🚫 Ignore Selected</button>
-                            <button class="btn-action" style="background-color: #dc2626; border-color: #dc2626;" onclick="batchDeleteSelected()">🗑️ Delete Selected</button>
+                            <button class="btn-action" style="background-color: #0284c7; border-color: #0284c7;" onclick="batchApplySelected()">Apply Selected</button>
+                            <button class="btn-action" style="background-color: #475569; border-color: #475569;" onclick="batchIgnoreSelected()">Ignore Selected</button>
+                            <button class="btn-action" style="background-color: #dc2626; border-color: #dc2626;" onclick="batchDeleteSelected()">Delete Selected</button>
                         </div>
                     </div>
 
@@ -308,8 +314,23 @@ public class IndexHtmlHandler implements HttpHandler {
                     </div>
                 </div>
 
-                <!-- Column 3: Job Details, Recruiter Inbox & Submission Audit Log (320px) -->
+                <!-- Column 3: Agent Chat Panel, Job Details, Recruiter Inbox & Activity Log (340px) -->
                 <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden;">
+                    <!-- Agent Chat Panel -->
+                    <div class="panel" id="agent-chat-panel" style="height: 220px; flex-shrink: 0;">
+                        <div class="panel-header">
+                            <span>Agent Chat Panel</span>
+                            <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="openAgentConfigModal()">Config</button>
+                        </div>
+                        <div class="panel-content" id="agent-chat-messages" style="padding: 10px; font-size: 11px; overflow-y: auto; height: 130px; display: flex; flex-direction: column; gap: 6px;">
+                            <div style="color: #64748b; font-style: italic;">Ask agent to search jobs, inspect recruiter emails, or extract skills.</div>
+                        </div>
+                        <div style="padding: 6px 10px; border-top: 1px solid #e2e8f0; display: flex; gap: 6px;">
+                            <input id="agent-chat-input" class="search-input" type="text" placeholder="Type prompt for agent..." onkeydown="if(event.key==='Enter') sendAgentChatMessage()" />
+                            <button id="btn-send-agent-chat" class="btn-action" style="padding: 4px 10px; font-size: 11px;" onclick="sendAgentChatMessage()">Send</button>
+                        </div>
+                    </div>
+
                     <div class="panel" style="flex: 1; min-height: 0;">
                         <div class="panel-header">
                             <span>Job Details</span>
@@ -318,23 +339,25 @@ public class IndexHtmlHandler implements HttpHandler {
                             <div class="detail-placeholder">Select a job card to view full details</div>
                         </div>
                     </div>
+
                     <!-- Recruiter Inbox Sync Panel -->
-                    <div class="panel" id="inbox-panel" style="height: 180px; flex-shrink: 0;">
+                    <div class="panel" id="inbox-panel" style="height: 160px; flex-shrink: 0;">
                         <div class="panel-header">
                             <span>Recruiter Inbox (Port 2525)</span>
                             <div style="display: flex; gap: 4px;">
-                                <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="testSimulateEmail()">📬 Test Email</button>
-                                <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="loadInbox()">🔄</button>
+                                <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="testSimulateEmail()">Test Email</button>
+                                <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="loadInbox()">Refresh</button>
                             </div>
                         </div>
                         <div class="panel-content" id="inbox-content" style="padding: 10px; font-size: 11px;">
                             <div style="color: #94a3b8; text-align: center; padding: 20px;">No recruiter emails received yet.</div>
                         </div>
                     </div>
-                    <div class="panel" style="height: 180px; flex-shrink: 0;">
+
+                    <div class="panel" style="height: 160px; flex-shrink: 0;">
                         <div class="panel-header">
                             <span>System Activity Central</span>
-                            <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="loadActivityLogs()">🔄 Refresh</button>
+                            <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="loadActivityLogs()">Refresh</button>
                         </div>
                         <div class="panel-content" id="dispatch-log-panel" style="padding: 10px; font-size: 11px;">
                             <div style="color: #94a3b8; text-align: center; padding: 20px;">No activity logged yet.</div>
@@ -346,7 +369,7 @@ public class IndexHtmlHandler implements HttpHandler {
             <!-- Credentials Vault Modal -->
             <div id="credentials-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
                 <div style="background-color: #ffffff; border-radius: 8px; width: 400px; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
-                    <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #0f172a;">🔑 Resolve Platform Credentials</div>
+                    <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #0f172a;">Resolve Platform Credentials</div>
                     <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
                         Authentication required for <strong id="modal-domain-name">domain</strong>. Save credentials/token to automate future dispatches.
                     </div>
@@ -370,13 +393,56 @@ public class IndexHtmlHandler implements HttpHandler {
             <div id="pdf-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
                 <div style="background-color: #ffffff; border-radius: 8px; width: 80%; height: 85%; padding: 16px; display: flex; flex-direction: column; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <span style="font-size: 16px; font-weight: 700; color: #0f172a;">📄 Resume PDF Viewer</span>
-                        <button class="btn-filter" onclick="closePdfModal()">✕ Close</button>
+                        <span style="font-size: 16px; font-weight: 700; color: #0f172a;">Resume PDF Viewer</span>
+                        <button class="btn-filter" onclick="closePdfModal()">Close</button>
                     </div>
                     <iframe id="pdf-frame" src="/api/profile/resume" style="width: 100%; flex: 1; border: 1px solid #cbd5e1; border-radius: 4px;"></iframe>
                 </div>
             </div>
 
+            <!-- LLM Settings Modal -->
+            <div id="agent-config-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background-color: #ffffff; border-radius: 8px; width: 440px; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);">
+                    <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #0f172a;">LLM Settings</div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
+                        Configure Ollama local provider or Cloud API parameters and document chunking model tier.
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">PROVIDER</label>
+                        <select id="config-provider-select" class="search-input">
+                            <option value="ollama">Ollama (Local Endpoint)</option>
+                            <option value="cloud">Cloud API (Gemini / OpenAI)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">OLLAMA ENDPOINT URL</label>
+                        <input id="config-ollama-url-input" class="search-input" type="text" value="http://localhost:11434" />
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">MODEL NAME</label>
+                        <input id="config-model-name-input" class="search-input" type="text" value="llama3" placeholder="llama3, mistral, gemma, deepseek-r1" />
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">MODEL SIZE TIER (DOCUMENT CHUNKING)</label>
+                        <select id="config-model-tier-select" class="search-input">
+                            <option value="SMALL">SMALL (100 words / chunk)</option>
+                            <option value="MEDIUM">MEDIUM (500 words / chunk)</option>
+                            <option value="LARGE">LARGE (Full Document)</option>
+                        </select>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">API KEY (OPTIONAL FOR CLOUD API)</label>
+                        <input id="config-api-key-input" class="search-input" type="password" placeholder="API Key" />
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                        <button class="btn-filter" onclick="closeAgentConfigModal()">Cancel</button>
+                        <button class="btn-action" onclick="saveAgentConfigModal()">Save Configuration</button>
+                    </div>
+                </div>
+            </div>
+        """;
+
+    private static final String HTML_PART_3 = """
             <script>
                 let rawEvaluatedItems = [];
                 let activeStatusFilter = 'ALL';
@@ -393,6 +459,7 @@ public class IndexHtmlHandler implements HttpHandler {
                     loadActivityLogs();
                     loadCustomTags();
                     loadInbox();
+                    loadAgentConfig();
                 });
 
                 function openPdfModal() {
@@ -403,6 +470,109 @@ public class IndexHtmlHandler implements HttpHandler {
                 function closePdfModal() {
                     const modal = document.getElementById('pdf-modal');
                     if (modal) modal.style.display = 'none';
+                }
+
+                async function openAgentConfigModal() {
+                    const modal = document.getElementById('agent-config-modal');
+                    if (!modal) return;
+                    try {
+                        const res = await fetch('/api/agent/config');
+                        if (res.ok) {
+                            const config = await res.json();
+                            if (document.getElementById('config-provider-select')) document.getElementById('config-provider-select').value = config.provider || 'ollama';
+                            if (document.getElementById('config-ollama-url-input')) document.getElementById('config-ollama-url-input').value = config.ollamaUrl || 'http://localhost:11434';
+                            if (document.getElementById('config-model-name-input')) document.getElementById('config-model-name-input').value = config.modelName || 'llama3';
+                            if (document.getElementById('config-model-tier-select')) document.getElementById('config-model-tier-select').value = config.modelTier || 'SMALL';
+                            if (document.getElementById('config-api-key-input')) document.getElementById('config-api-key-input').value = config.apiKey || '';
+                        }
+                    } catch (ignored) {}
+                    modal.style.display = 'flex';
+                }
+
+                function closeAgentConfigModal() {
+                    const modal = document.getElementById('agent-config-modal');
+                    if (modal) modal.style.display = 'none';
+                }
+
+                async function loadAgentConfig() {
+                    try {
+                        await fetch('/api/agent/config');
+                    } catch (ignored) {}
+                }
+
+                async function saveAgentConfigModal() {
+                    const provider = document.getElementById('config-provider-select').value;
+                    const ollamaUrl = document.getElementById('config-ollama-url-input').value;
+                    const modelName = document.getElementById('config-model-name-input').value;
+                    const modelTier = document.getElementById('config-model-tier-select').value;
+                    const apiKey = document.getElementById('config-api-key-input').value;
+
+                    try {
+                        const res = await fetch('/api/agent/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ provider, ollamaUrl, modelName, modelTier, apiKey, customChunkSize: 0 })
+                        });
+                        if (!res.ok) throw new Error('Failed to save configuration');
+                        closeAgentConfigModal();
+                        alert('LLM Configuration saved!');
+                    } catch (err) {
+                        alert('Error saving configuration: ' + err.message);
+                    }
+                }
+
+                async function sendAgentChatMessage() {
+                    const input = document.getElementById('agent-chat-input');
+                    const container = document.getElementById('agent-chat-messages');
+                    if (!input || !container) return;
+                    const message = (input.value || '').trim();
+                    if (!message) return;
+
+                    const userDiv = document.createElement('div');
+                    userDiv.style.alignSelf = 'flex-end';
+                    userDiv.style.backgroundColor = '#0f172a';
+                    userDiv.style.color = '#ffffff';
+                    userDiv.style.padding = '4px 8px';
+                    userDiv.style.borderRadius = '4px';
+                    userDiv.style.maxWidth = '85%';
+                    userDiv.textContent = message;
+                    container.appendChild(userDiv);
+                    input.value = '';
+                    container.scrollTop = container.scrollHeight;
+
+                    try {
+                        const res = await fetch('/api/agent/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ message })
+                        });
+                        if (!res.ok) throw new Error('Agent error (status ' + res.status + ')');
+                        const data = await res.json();
+
+                        const agentDiv = document.createElement('div');
+                        agentDiv.style.alignSelf = 'flex-start';
+                        agentDiv.style.backgroundColor = '#f1f5f9';
+                        agentDiv.style.color = '#0f172a';
+                        agentDiv.style.padding = '6px 8px';
+                        agentDiv.style.borderRadius = '4px';
+                        agentDiv.style.maxWidth = '90%';
+                        agentDiv.style.border = '1px solid #cbd5e1';
+
+                        let html = `<div>${escapeHtml(data.response || '')}</div>`;
+                        if (data.toolsExecuted && data.toolsExecuted.length > 0) {
+                            html += `<div style="font-size: 9px; color: #64748b; margin-top: 4px; border-top: 1px solid #e2e8f0; padding-top: 2px;">Tools: ${escapeHtml(data.toolsExecuted.join(', '))}</div>`;
+                        }
+                        agentDiv.innerHTML = html;
+                        container.appendChild(agentDiv);
+                        container.scrollTop = container.scrollHeight;
+                    } catch (err) {
+                        const errDiv = document.createElement('div');
+                        errDiv.style.color = '#dc2626';
+                        errDiv.style.fontSize = '10px';
+                        errDiv.textContent = 'Failed to send message: ' + err.message;
+                        container.appendChild(errDiv);
+                        container.scrollTop = container.scrollHeight;
+                    }
                 }
 
                 async function updateProfileSeniorities(seniorities) {
@@ -493,7 +663,9 @@ public class IndexHtmlHandler implements HttpHandler {
                         alert('Error removing skill: ' + err.message);
                     }
                 }
+        """;
 
+    private static final String HTML_PART_4 = """
                 async function loadProfile() {
                     const panel = document.getElementById('profile-panel');
                     try {
@@ -538,7 +710,7 @@ public class IndexHtmlHandler implements HttpHandler {
                                 ${skillsList.map(s => `
                                     <span class="tag tag-matched" style="display: inline-flex; align-items: center; gap: 4px;">
                                         ${escapeHtml(s)}
-                                        <span style="cursor: pointer; font-weight: bold; margin-left: 2px;" onclick="removeProfileSkill('${escapeHtml(s)}')">×</span>
+                                        <span style="cursor: pointer; font-weight: bold; margin-left: 2px;" onclick="removeProfileSkill('${escapeHtml(s)}')">x</span>
                                     </span>
                                 `).join('')}
                                 <button class="btn-filter" style="border-style: dashed;" onclick="addProfileSkill()">+ Add Skill</button>
@@ -586,18 +758,15 @@ public class IndexHtmlHandler implements HttpHandler {
                             return false;
                         }
 
-                        // Status Filter
                         if (activeStatusFilter !== 'ALL' && st.toUpperCase() !== activeStatusFilter) {
                             return false;
                         }
 
-                        // Region Filter
                         const loc = (job.location || '').toUpperCase();
                         if (activeRegionFilter === 'WORLDWIDE' && !loc.includes('WORLDWIDE')) return false;
                         if (activeRegionFilter === 'AMERICAS' && !(loc.includes('AMERICA') || loc.includes('LATAM') || loc.includes('US'))) return false;
                         if (activeRegionFilter === 'USA' && !(loc.includes('USA') || loc.includes('US') || loc.includes('EUROPE'))) return false;
 
-                        // Custom Tag Filter
                         if (activeTagFilter) {
                             const tagLower = activeTagFilter.toLowerCase();
                             const title = (job.title || '').toLowerCase();
@@ -610,7 +779,6 @@ public class IndexHtmlHandler implements HttpHandler {
                             }
                         }
 
-                        // Keyword Search Filter
                         if (searchQuery.length > 0) {
                             const title = (job.title || '').toLowerCase();
                             const company = (job.company || '').toLowerCase();
@@ -637,12 +805,12 @@ public class IndexHtmlHandler implements HttpHandler {
                         const score = match ? match.overallScore.toFixed(1) : null;
 
                         let badgeClass = 'badge-discovered';
-                        let badgeSymbol = '⚪';
-                        if (st === 'RECOMMENDED') { badgeClass = 'badge-recommended'; badgeSymbol = '🟢'; }
-                        else if (st === 'CONDITIONAL') { badgeClass = 'badge-conditional'; badgeSymbol = '🟡'; }
-                        else if (st === 'REJECTED') { badgeClass = 'badge-rejected'; badgeSymbol = '🔴'; }
-                        else if (st === 'APPLIED') { badgeClass = 'badge-applied'; badgeSymbol = '🚀'; }
-                        else if (st === 'IGNORED') { badgeClass = 'badge-ignored'; badgeSymbol = '🚫'; }
+                        let badgeSymbol = '[DISCOVERED]';
+                        if (st === 'RECOMMENDED') { badgeClass = 'badge-recommended'; badgeSymbol = '[RECOMMENDED]'; }
+                        else if (st === 'CONDITIONAL') { badgeClass = 'badge-conditional'; badgeSymbol = '[CONDITIONAL]'; }
+                        else if (st === 'REJECTED') { badgeClass = 'badge-rejected'; badgeSymbol = '[REJECTED]'; }
+                        else if (st === 'APPLIED') { badgeClass = 'badge-applied'; badgeSymbol = '[APPLIED]'; }
+                        else if (st === 'IGNORED') { badgeClass = 'badge-ignored'; badgeSymbol = '[IGNORED]'; }
 
                         const isSelected = job.id === selectedJobId;
                         const isChecked = selectedJobIds.has(job.id);
@@ -661,21 +829,23 @@ public class IndexHtmlHandler implements HttpHandler {
                                 <div class="job-card-company">${escapeHtml(job.company || 'Unknown')}</div>
                                 <div class="job-card-meta" style="justify-content: space-between;">
                                     <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-                                        <span class="tag tag-region">📍 ${escapeHtml(job.location || 'Remote')}</span>
-                                        <span class="tag">💼 ${escapeHtml(job.seniorityLevel || 'N/A')}</span>
-                                        <span class="tag tag-contract">📄 ${jobTypeLabel}</span>
+                                        <span class="tag tag-region">LOC: ${escapeHtml(job.location || 'Remote')}</span>
+                                        <span class="tag">LVL: ${escapeHtml(job.seniorityLevel || 'N/A')}</span>
+                                        <span class="tag tag-contract">TYPE: ${jobTypeLabel}</span>
                                     </div>
                                     <div style="display: flex; gap: 4px;" onclick="event.stopPropagation();">
-                                        <button class="btn-card-action" title="Apply" onclick="applyToJob('${escapeHtml(job.id)}')">🚀 Apply</button>
-                                        <button class="btn-card-action" title="Ignore" onclick="ignoreJob('${escapeHtml(job.id)}')">🚫 Ignore</button>
-                                        <button class="btn-card-action btn-card-delete" title="Delete" onclick="deleteJob('${escapeHtml(job.id)}')">🗑️ Delete</button>
+                                        <button class="btn-card-action" title="Apply" onclick="applyToJob('${escapeHtml(job.id)}')">Apply</button>
+                                        <button class="btn-card-action" title="Ignore" onclick="ignoreJob('${escapeHtml(job.id)}')">Ignore</button>
+                                        <button class="btn-card-action btn-card-delete" title="Delete" onclick="deleteJob('${escapeHtml(job.id)}')">Delete</button>
                                     </div>
                                 </div>
                             </div>
                         `;
                     }).join('');
                 }
+        """;
 
+    private static final String HTML_PART_5 = """
                 function selectJob(id) {
                     selectedJobId = id;
                     renderJobs();
@@ -713,17 +883,17 @@ public class IndexHtmlHandler implements HttpHandler {
                         <div class="section-label">Job Description</div>
                         <div class="detail-desc">${escapeHtml(job.description || 'No description available.')}</div>
 
-                        ${job.sourceUrl ? `<a class="detail-link" href="${escapeHtml(job.sourceUrl)}" target="_blank">View Original Post ↗</a>` : ''}
+                        ${job.sourceUrl ? `<a class="detail-link" href="${escapeHtml(job.sourceUrl)}" target="_blank">View Original Post</a>` : ''}
 
                         <button id="btn-generate-coverletter" class="btn-action" style="width: 100%; margin-top: 12px; justify-content: center;" onclick="generateCoverLetter('${escapeHtml(job.id)}')">
-                            <span>📝 Generate Cover Letter</span>
+                            <span>Generate Cover Letter</span>
                         </button>
 
                         <div id="coverletter-container" style="display: none; margin-top: 12px; border-top: 1px solid #e2e8f0; padding-top: 12px;">
                             <div class="section-label">Cover Letter</div>
                             <textarea id="coverletter-text" style="width: 100%; height: 160px; font-family: inherit; font-size: 12px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; resize: vertical; margin-bottom: 8px;" readonly></textarea>
                             <button id="btn-copy-coverletter" class="btn-action" style="width: 100%; justify-content: center;" onclick="copyCoverLetter()">
-                                <span>📋 Copy Cover Letter</span>
+                                <span>Copy Cover Letter</span>
                             </button>
                         </div>
                     `;
@@ -838,17 +1008,17 @@ public class IndexHtmlHandler implements HttpHandler {
                             return;
                         }
                         logPanel.innerHTML = logs.map(log => {
-                            let indicator = '🟢';
+                            let indicator = '[OK]';
                             let statusColor = '#16a34a';
                             if (log.status === 'NEEDS_HUMAN_ASSISTANCE' || log.type === 'NEEDS_HUMAN_ASSISTANCE') {
-                                indicator = '⚠️';
+                                indicator = '[ASSISTANCE]';
                                 statusColor = '#d97706';
                             } else if (log.status === 'SUBMITTING') {
-                                indicator = '🟡';
+                                indicator = '[SUBMITTING]';
                                 statusColor = '#ca8a04';
                             }
                             const timeStr = log.timestamp ? (log.timestamp.includes('T') ? log.timestamp.split('T')[1].substring(0, 8) : log.timestamp) : '';
-                            const gmailBtn = log.gmailUrl ? `<a href="${escapeHtml(log.gmailUrl)}" target="_blank" class="btn-card-action" style="display: inline-block; text-decoration: none; margin-top: 4px; color: #ea4335; border-color: #fca5a5; background-color: #fef2f2;">✉️ Open in Gmail</a>` : '';
+                            const gmailBtn = log.gmailUrl ? `<a href="${escapeHtml(log.gmailUrl)}" target="_blank" class="btn-card-action" style="display: inline-block; text-decoration: none; margin-top: 4px; color: #ea4335; border-color: #fca5a5; background-color: #fef2f2;">Open in Gmail</a>` : '';
 
                             return `
                                 <div style="border-bottom: 1px solid #f1f5f9; padding: 6px 0;">
@@ -878,13 +1048,13 @@ public class IndexHtmlHandler implements HttpHandler {
                             return;
                         }
                         logPanel.innerHTML = logs.slice().reverse().map(log => {
-                            let indicator = '🟢';
+                            let indicator = '[OK]';
                             let statusColor = '#16a34a';
                             if (log.requiresHumanAssistance || log.status === 'NEEDS_HUMAN_ASSISTANCE') {
-                                indicator = '⚠️';
+                                indicator = '[ASSISTANCE]';
                                 statusColor = '#d97706';
                             } else if (log.status === 'SUBMITTING') {
-                                indicator = '🟡';
+                                indicator = '[SUBMITTING]';
                                 statusColor = '#ca8a04';
                             }
                             const timeStr = log.timestamp ? (log.timestamp.includes('T') ? log.timestamp.split('T')[1].substring(0, 8) : log.timestamp) : '';
@@ -896,7 +1066,7 @@ public class IndexHtmlHandler implements HttpHandler {
                                     </div>
                                     <div style="font-size: 10px; color: #64748b;">${escapeHtml(log.company)} (${escapeHtml(log.domain)})</div>
                                     <div style="font-size: 10px; color: #334155; margin-top: 2px;">${escapeHtml(log.message)}</div>
-                                    ${log.requiresHumanAssistance ? `<button class="btn-card-action" style="margin-top: 4px; background: #fffbeb; color: #b45309; border-color: #fde68a;" onclick="openCredentialsModal('${escapeHtml(log.domain)}')">🔑 Resolve Login / Save Session</button>` : ''}
+                                    ${log.requiresHumanAssistance ? `<button class="btn-card-action" style="margin-top: 4px; background: #fffbeb; color: #b45309; border-color: #fde68a;" onclick="openCredentialsModal('${escapeHtml(log.domain)}')">Resolve Login / Save Session</button>` : ''}
                                 </div>
                             `;
                         }).join('');
@@ -1016,7 +1186,7 @@ public class IndexHtmlHandler implements HttpHandler {
                         await navigator.clipboard.writeText(textarea.value);
                         if (btn) {
                             const originalText = btn.innerHTML;
-                            btn.innerHTML = '<span>✅ Copied!</span>';
+                            btn.innerHTML = '<span>Copied!</span>';
                             setTimeout(() => { btn.innerHTML = originalText; }, 2000);
                         }
                     } catch (err) {
@@ -1159,7 +1329,7 @@ public class IndexHtmlHandler implements HttpHandler {
                             return `
                                 <div style="border-bottom: 1px solid #f1f5f9; padding: 6px 0;">
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <span style="font-weight: 600; color: #0f172a;">📩 ${escapeHtml(email.sender || 'Unknown')}</span>
+                                        <span style="font-weight: 600; color: #0f172a;">From: ${escapeHtml(email.sender || 'Unknown')}</span>
                                         ${statusBadge}
                                     </div>
                                     <div style="font-size: 11px; font-weight: 600; color: #334155; margin-top: 2px;">${escapeHtml(email.subject || '(No Subject)')}</div>
@@ -1224,6 +1394,16 @@ public class IndexHtmlHandler implements HttpHandler {
             JobRepository jobRepository,
             GetJobsUseCase getJobsUseCase) {}
 
+    private static String getHtmlContent() {
+        StringBuilder sb = new StringBuilder();
+        sb.append(HTML_PART_1);
+        sb.append(HTML_PART_2);
+        sb.append(HTML_PART_3);
+        sb.append(HTML_PART_4);
+        sb.append(HTML_PART_5);
+        return sb.toString();
+    }
+
     @Override
     public void handle(HttpExchange exchange) throws IOException {
         String method = exchange.getRequestMethod();
@@ -1244,7 +1424,8 @@ public class IndexHtmlHandler implements HttpHandler {
             return;
         }
 
-        byte[] responseBytes = HTML_CONTENT.getBytes(StandardCharsets.UTF_8);
+        String html = getHtmlContent();
+        byte[] responseBytes = html.getBytes(StandardCharsets.UTF_8);
 
         exchange.getResponseHeaders().set("Content-Type", "text/html; charset=UTF-8");
         exchange.getResponseHeaders().set("Access-Control-Allow-Origin", "*");

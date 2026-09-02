@@ -3,6 +3,7 @@ package com.watashi.adapters.in.web;
 import com.sun.net.httpserver.HttpServer;
 import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.matching.FilterConfiguration;
+import com.watashi.core.ports.in.AgentChatUseCase;
 import com.watashi.core.ports.in.AssessJobCompatibilityUseCase;
 import com.watashi.core.ports.in.DiscoverJobsUseCase;
 import com.watashi.core.ports.in.DispatchJobApplicationUseCase;
@@ -10,6 +11,7 @@ import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.GetSystemLogsUseCase;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
+import com.watashi.core.ports.in.ManageAgentConfigUseCase;
 import com.watashi.core.ports.in.ManageCandidateProfileUseCase;
 import com.watashi.core.ports.in.ManageCustomTagsUseCase;
 import com.watashi.core.ports.in.ManageFilterConfigUseCase;
@@ -514,6 +516,67 @@ public class DashboardHttpServer {
                 null);
     }
 
+    public DashboardHttpServer(int port, AgentChatUseCase agentChatUseCase) {
+        this(
+                port,
+                null,
+                null,
+                (ManageCandidateProfileUseCase) null,
+                (ManageFilterConfigUseCase) null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                agentChatUseCase,
+                null);
+    }
+
+    public DashboardHttpServer(int port, ManageAgentConfigUseCase manageAgentConfigUseCase) {
+        this(
+                port,
+                null,
+                null,
+                (ManageCandidateProfileUseCase) null,
+                (ManageFilterConfigUseCase) null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                manageAgentConfigUseCase);
+    }
+
+    public DashboardHttpServer(
+            int port, AgentChatUseCase agentChatUseCase, ManageAgentConfigUseCase manageAgentConfigUseCase) {
+        this(
+                port,
+                null,
+                null,
+                (ManageCandidateProfileUseCase) null,
+                (ManageFilterConfigUseCase) null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                agentChatUseCase,
+                manageAgentConfigUseCase);
+    }
+
     public DashboardHttpServer(
             int port,
             DiscoverJobsUseCase discoverUseCase,
@@ -529,6 +592,79 @@ public class DashboardHttpServer {
             ManageCustomTagsUseCase tagsUseCase,
             ResumePdfStorageRepository pdfRepository,
             GetSystemLogsUseCase logsUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                profileUseCase,
+                filterUseCase,
+                getJobsUseCase,
+                ingestUseCase,
+                coverLetterUseCase,
+                trackUseCase,
+                dispatchUseCase,
+                inboxUseCase,
+                tagsUseCase,
+                pdfRepository,
+                logsUseCase,
+                null,
+                null);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            CandidateProfileRepository profileRepository,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase,
+            GenerateCoverLetterUseCase coverLetterUseCase,
+            TrackJobApplicationUseCase trackUseCase,
+            DispatchJobApplicationUseCase dispatchUseCase,
+            SyncRecruiterInboxUseCase inboxUseCase,
+            ManageCustomTagsUseCase tagsUseCase,
+            ResumePdfStorageRepository pdfRepository,
+            GetSystemLogsUseCase logsUseCase,
+            AgentChatUseCase agentChatUseCase,
+            ManageAgentConfigUseCase manageAgentConfigUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                toProfileUseCase(profileRepository),
+                toFilterUseCase(filterRepository),
+                getJobsUseCase != null ? getJobsUseCase : toGetJobsUseCase(jobRepository),
+                ingestUseCase,
+                coverLetterUseCase,
+                trackUseCase,
+                dispatchUseCase,
+                inboxUseCase,
+                tagsUseCase,
+                pdfRepository,
+                logsUseCase,
+                agentChatUseCase,
+                manageAgentConfigUseCase);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
+            ManageFilterConfigUseCase filterUseCase,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase,
+            GenerateCoverLetterUseCase coverLetterUseCase,
+            TrackJobApplicationUseCase trackUseCase,
+            DispatchJobApplicationUseCase dispatchUseCase,
+            SyncRecruiterInboxUseCase inboxUseCase,
+            ManageCustomTagsUseCase tagsUseCase,
+            ResumePdfStorageRepository pdfRepository,
+            GetSystemLogsUseCase logsUseCase,
+            AgentChatUseCase agentChatUseCase,
+            ManageAgentConfigUseCase manageAgentConfigUseCase) {
         this.port = port;
         try {
             this.server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -556,6 +692,8 @@ public class DashboardHttpServer {
             CustomTagsApiHandler tagsHandler = new CustomTagsApiHandler(tagsUseCase);
             this.server.createContext("/api/tags", tagsHandler);
             this.server.createContext("/api/logs", new ActivityLogsApiHandler(logsUseCase));
+            this.server.createContext("/api/agent/chat", new AgentChatApiHandler(agentChatUseCase));
+            this.server.createContext("/api/agent/config", new AgentConfigApiHandler(manageAgentConfigUseCase));
             this.executor = Executors.newFixedThreadPool(4);
             this.server.setExecutor(this.executor);
         } catch (IOException e) {
