@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import com.watashi.adapters.out.persistence.json.JsonStorageUtils;
 import com.watashi.core.domain.job.JobStatus;
 import com.watashi.core.ports.in.TrackJobApplicationUseCase;
 import java.io.IOException;
@@ -16,7 +15,7 @@ import java.util.Map;
 
 public class JobApplicationApiHandler implements HttpHandler {
 
-    private static final ObjectMapper MAPPER = JsonStorageUtils.createObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final TrackJobApplicationUseCase trackUseCase;
 
@@ -114,7 +113,7 @@ public class JobApplicationApiHandler implements HttpHandler {
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(responseBytes);
             }
-        } catch (IllegalArgumentException e) {
+        } catch (Exception e) {
             sendError(exchange, 400);
         }
     }
@@ -154,7 +153,7 @@ public class JobApplicationApiHandler implements HttpHandler {
             try (OutputStream os = exchange.getResponseBody()) {
                 os.write(responseBytes);
             }
-        } catch (IllegalArgumentException e) {
+        } catch (Exception e) {
             sendError(exchange, 400);
         }
     }

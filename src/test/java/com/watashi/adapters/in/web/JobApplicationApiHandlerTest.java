@@ -209,4 +209,122 @@ public class JobApplicationApiHandlerTest extends TestCase {
             server.stop();
         }
     }
+
+    public void testPostStatusMalformedJsonReturns400() throws Exception {
+        TrackJobApplicationUseCase mockTrackUseCase = new TrackJobApplicationUseCase() {
+            @Override
+            public void updateJobStatus(String jobId, JobStatus status) {}
+
+            @Override
+            public void batchUpdateJobStatus(List<String> jobIds, JobStatus status) {}
+
+            @Override
+            public Map<String, JobStatus> getApplicationHistory() {
+                return Map.of();
+            }
+
+            @Override
+            public Optional<JobStatus> getJobStatus(String jobId) {
+                return Optional.empty();
+            }
+        };
+
+        DashboardHttpServer server = new DashboardHttpServer(18095, mockTrackUseCase);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            String malformedJson = "{invalid_json}";
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:18095/api/jobs/status"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(malformedJson))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            assertEquals(400, response.statusCode());
+            assertEquals(
+                    "*",
+                    response.headers().firstValue("Access-Control-Allow-Origin").orElse(null));
+        } finally {
+            server.stop();
+        }
+    }
+
+    public void testPostStatusInvalidEnumReturns400() throws Exception {
+        TrackJobApplicationUseCase mockTrackUseCase = new TrackJobApplicationUseCase() {
+            @Override
+            public void updateJobStatus(String jobId, JobStatus status) {}
+
+            @Override
+            public void batchUpdateJobStatus(List<String> jobIds, JobStatus status) {}
+
+            @Override
+            public Map<String, JobStatus> getApplicationHistory() {
+                return Map.of();
+            }
+
+            @Override
+            public Optional<JobStatus> getJobStatus(String jobId) {
+                return Optional.empty();
+            }
+        };
+
+        DashboardHttpServer server = new DashboardHttpServer(18096, mockTrackUseCase);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            String invalidEnumJson = "{\"jobId\":\"job-123\",\"status\":\"INVALID_ENUM\"}";
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:18096/api/jobs/status"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(invalidEnumJson))
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            assertEquals(400, response.statusCode());
+            assertEquals(
+                    "*",
+                    response.headers().firstValue("Access-Control-Allow-Origin").orElse(null));
+        } finally {
+            server.stop();
+        }
+    }
+
+    public void testUnknownEndpointReturns404() throws Exception {
+        TrackJobApplicationUseCase mockTrackUseCase = new TrackJobApplicationUseCase() {
+            @Override
+            public void updateJobStatus(String jobId, JobStatus status) {}
+
+            @Override
+            public void batchUpdateJobStatus(List<String> jobIds, JobStatus status) {}
+
+            @Override
+            public Map<String, JobStatus> getApplicationHistory() {
+                return Map.of();
+            }
+
+            @Override
+            public Optional<JobStatus> getJobStatus(String jobId) {
+                return Optional.empty();
+            }
+        };
+
+        DashboardHttpServer server = new DashboardHttpServer(18097, mockTrackUseCase);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:18097/api/jobs/status/unknown"))
+                    .GET()
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            assertEquals(404, response.statusCode());
+            assertEquals(
+                    "*",
+                    response.headers().firstValue("Access-Control-Allow-Origin").orElse(null));
+        } finally {
+            server.stop();
+        }
+    }
 }
