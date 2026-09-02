@@ -5,6 +5,7 @@ import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
 import com.watashi.core.ports.out.CandidateProfileIngestor;
 import com.watashi.core.ports.out.CandidateProfileRepository;
+import com.watashi.core.ports.out.ResumePdfStorageRepository;
 import java.util.Optional;
 import java.util.Set;
 import junit.framework.TestCase;
@@ -42,6 +43,35 @@ public class DefaultIngestCandidateProfileServiceTest extends TestCase {
 
         assertEquals(mockProfile, result);
         assertEquals(mockProfile, mockRepo.findDefault().orElse(null));
+    }
+
+    public void testIngestAndSavePdfToPdfRepository() {
+        byte[][] savedBytes = new byte[1][];
+        ResumePdfStorageRepository pdfRepo = new ResumePdfStorageRepository() {
+            @Override
+            public void savePdf(byte[] pdfBytes) {
+                savedBytes[0] = pdfBytes;
+            }
+
+            @Override
+            public Optional<byte[]> loadPdf() {
+                return Optional.ofNullable(savedBytes[0]);
+            }
+
+            @Override
+            public boolean exists() {
+                return savedBytes[0] != null;
+            }
+        };
+
+        IngestCandidateProfileUseCase useCase =
+                new DefaultIngestCandidateProfileService(mockIngestor, mockRepo, pdfRepo);
+        byte[] pdfInput = "PDF Content".getBytes();
+        CandidateProfile result = useCase.ingestFromPdf(pdfInput, null);
+
+        assertEquals(mockProfile, result);
+        assertEquals(mockProfile, mockRepo.findDefault().orElse(null));
+        assertEquals("PDF Content", new String(savedBytes[0]));
     }
 
     public void testConstructorNullIngestor() {
