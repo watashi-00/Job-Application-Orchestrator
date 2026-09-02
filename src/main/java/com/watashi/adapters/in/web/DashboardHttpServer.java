@@ -5,6 +5,7 @@ import com.watashi.core.domain.candidate.CandidateProfile;
 import com.watashi.core.domain.matching.FilterConfiguration;
 import com.watashi.core.ports.in.AssessJobCompatibilityUseCase;
 import com.watashi.core.ports.in.DiscoverJobsUseCase;
+import com.watashi.core.ports.in.DispatchJobApplicationUseCase;
 import com.watashi.core.ports.in.GenerateCoverLetterUseCase;
 import com.watashi.core.ports.in.GetJobsUseCase;
 import com.watashi.core.ports.in.IngestCandidateProfileUseCase;
@@ -42,6 +43,20 @@ public class DashboardHttpServer {
                 null,
                 null,
                 trackUseCase);
+    }
+
+    public DashboardHttpServer(int port, DispatchJobApplicationUseCase dispatchUseCase) {
+        this(
+                port,
+                null,
+                null,
+                (ManageCandidateProfileUseCase) null,
+                (ManageFilterConfigUseCase) null,
+                null,
+                null,
+                null,
+                null,
+                dispatchUseCase);
     }
 
     public DashboardHttpServer(
@@ -202,12 +217,39 @@ public class DashboardHttpServer {
                 port,
                 discoverUseCase,
                 assessUseCase,
+                profileRepository,
+                filterRepository,
+                jobRepository,
+                getJobsUseCase,
+                ingestUseCase,
+                coverLetterUseCase,
+                trackUseCase,
+                null);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            CandidateProfileRepository profileRepository,
+            FilterConfigRepository filterRepository,
+            JobRepository jobRepository,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase,
+            GenerateCoverLetterUseCase coverLetterUseCase,
+            TrackJobApplicationUseCase trackUseCase,
+            DispatchJobApplicationUseCase dispatchUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
                 toProfileUseCase(profileRepository),
                 toFilterUseCase(filterRepository),
                 getJobsUseCase != null ? getJobsUseCase : toGetJobsUseCase(jobRepository),
                 ingestUseCase,
                 coverLetterUseCase,
-                trackUseCase);
+                trackUseCase,
+                dispatchUseCase);
     }
 
     public DashboardHttpServer(
@@ -301,6 +343,30 @@ public class DashboardHttpServer {
             IngestCandidateProfileUseCase ingestUseCase,
             GenerateCoverLetterUseCase coverLetterUseCase,
             TrackJobApplicationUseCase trackUseCase) {
+        this(
+                port,
+                discoverUseCase,
+                assessUseCase,
+                profileUseCase,
+                filterUseCase,
+                getJobsUseCase,
+                ingestUseCase,
+                coverLetterUseCase,
+                trackUseCase,
+                null);
+    }
+
+    public DashboardHttpServer(
+            int port,
+            DiscoverJobsUseCase discoverUseCase,
+            AssessJobCompatibilityUseCase assessUseCase,
+            ManageCandidateProfileUseCase profileUseCase,
+            ManageFilterConfigUseCase filterUseCase,
+            GetJobsUseCase getJobsUseCase,
+            IngestCandidateProfileUseCase ingestUseCase,
+            GenerateCoverLetterUseCase coverLetterUseCase,
+            TrackJobApplicationUseCase trackUseCase,
+            DispatchJobApplicationUseCase dispatchUseCase) {
         this.port = port;
         try {
             this.server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -317,6 +383,10 @@ public class DashboardHttpServer {
             this.server.createContext("/api/jobs/status", appHandler);
             this.server.createContext("/api/jobs/batch-status", appHandler);
             this.server.createContext("/api/jobs/history", appHandler);
+            DispatcherApiHandler dispatcherHandler = new DispatcherApiHandler(dispatchUseCase);
+            this.server.createContext("/api/applications/dispatch", dispatcherHandler);
+            this.server.createContext("/api/applications/logs", dispatcherHandler);
+            this.server.createContext("/api/credentials", dispatcherHandler);
             this.executor = Executors.newFixedThreadPool(4);
             this.server.setExecutor(this.executor);
         } catch (IOException e) {

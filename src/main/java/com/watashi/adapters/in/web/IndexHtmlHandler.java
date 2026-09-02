@@ -304,13 +304,47 @@ public class IndexHtmlHandler implements HttpHandler {
                     </div>
                 </div>
 
-                <!-- Column 3: Job Detail Panel (320px) -->
-                <div class="panel">
-                    <div class="panel-header">
-                        <span>Job Details</span>
+                <!-- Column 3: Job Details & Submission Audit Log (320px) -->
+                <div style="display: flex; flex-direction: column; gap: 16px; height: 100%; overflow: hidden;">
+                    <div class="panel" style="flex: 1; min-height: 0;">
+                        <div class="panel-header">
+                            <span>Job Details</span>
+                        </div>
+                        <div class="panel-content" id="detail-panel">
+                            <div class="detail-placeholder">Select a job card to view full details</div>
+                        </div>
                     </div>
-                    <div class="panel-content" id="detail-panel">
-                        <div class="detail-placeholder">Select a job card to view full details</div>
+                    <div class="panel" style="height: 220px; flex-shrink: 0;">
+                        <div class="panel-header">
+                            <span>Submission Audit Log</span>
+                            <button class="btn-filter" style="font-size: 10px; padding: 2px 6px;" onclick="fetchDispatchLogs()">🔄 Refresh</button>
+                        </div>
+                        <div class="panel-content" id="dispatch-log-panel" style="padding: 10px; font-size: 11px;">
+                            <div style="color: #94a3b8; text-align: center; padding: 20px;">No application dispatches logged yet.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Credentials Vault Modal -->
+            <div id="credentials-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(15, 23, 42, 0.6); z-index: 1000; align-items: center; justify-content: center;">
+                <div style="background-color: #ffffff; border-radius: 8px; width: 400px; padding: 20px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+                    <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px; color: #0f172a;">🔑 Resolve Platform Credentials</div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 16px;">
+                        Authentication required for <strong id="modal-domain-name">domain</strong>. Save credentials/token to automate future dispatches.
+                    </div>
+                    <input type="hidden" id="modal-domain-input" />
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">USERNAME / EMAIL</label>
+                        <input id="modal-username-input" class="search-input" type="text" placeholder="user@example.com" />
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 4px;">API TOKEN / SESSION COOKIE</label>
+                        <input id="modal-token-input" class="search-input" type="password" placeholder="Session cookie or Auth token" />
+                    </div>
+                    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+                        <button class="btn-filter" onclick="closeCredentialsModal()">Cancel</button>
+                        <button class="btn-action" onclick="submitCredentialsModal()">Save & Proceed</button>
                     </div>
                 </div>
             </div>
@@ -325,6 +359,7 @@ public class IndexHtmlHandler implements HttpHandler {
                 document.addEventListener('DOMContentLoaded', () => {
                     loadProfile();
                     loadJobs();
+                    fetchDispatchLogs();
                 });
 
                 async function loadProfile() {
@@ -551,18 +586,7 @@ public class IndexHtmlHandler implements HttpHandler {
                 }
 
                 async function applyToJob(id) {
-                    try {
-                        const res = await fetch('/api/jobs/status', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ jobId: id, status: 'APPLIED' })
-                        });
-                        if (!res.ok) throw new Error('Status update failed');
-                        await loadJobs();
-                        if (selectedJobId === id) selectJob(id);
-                    } catch (err) {
-                        alert('Failed to update job status: ' + err.message);
-                    }
+                    await dispatchApplication(id);
                 }
 
                 async function ignoreJob(id) {
@@ -601,18 +625,116 @@ public class IndexHtmlHandler implements HttpHandler {
                     if (selectedJobIds.size === 0) return;
                     try {
                         const ids = Array.from(selectedJobIds);
-                        const res = await fetch('/api/jobs/batch-status', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ jobIds: ids, status: 'APPLIED' })
-                        });
-                        if (!res.ok) throw new Error('Batch status update failed');
+                        for (const id of ids) {
+                            await dispatchApplication(id);
+                        }
                         selectedJobIds.clear();
                         updateBatchBar();
                         await loadJobs();
                         if (selectedJobId) selectJob(selectedJobId);
                     } catch (err) {
                         alert('Failed to apply selected jobs: ' + err.message);
+                    }
+                }
+
+                async function dispatchApplication(jobId) {
+                    try {
+                        const res = await fetch('/api/applications/dispatch', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ jobId: jobId, sendCoverLetter: false })
+                        });
+                        if (!res.ok) throw new Error('Dispatch failed with status ' + res.status);
+                        const log = await res.json();
+                        await fetchDispatchLogs();
+                        await loadJobs();
+                        if (selectedJobId === jobId) selectJob(jobId);
+                        if (log.requiresHumanAssistance) {
+                            openCredentialsModal(log.domain || '');
+                        }
+                        return log;
+                    } catch (err) {
+                        alert('Failed to dispatch application: ' + err.message);
+                    }
+                }
+
+                async function fetchDispatchLogs() {
+                    const logPanel = document.getElementById('dispatch-log-panel');
+                    if (!logPanel) return;
+                    try {
+                        const res = await fetch('/api/applications/logs');
+                        if (!res.ok) return;
+                        const logs = await res.json();
+                        if (!logs || logs.length === 0) {
+                            logPanel.innerHTML = '<div style="color: #94a3b8; text-align: center; padding: 20px;">No application dispatches logged yet.</div>';
+                            return;
+                        }
+                        logPanel.innerHTML = logs.slice().reverse().map(log => {
+                            let indicator = '🟢';
+                            let statusColor = '#16a34a';
+                            if (log.requiresHumanAssistance || log.status === 'NEEDS_HUMAN_ASSISTANCE') {
+                                indicator = '⚠️';
+                                statusColor = '#d97706';
+                            } else if (log.status === 'SUBMITTING') {
+                                indicator = '🟡';
+                                statusColor = '#ca8a04';
+                            }
+                            const timeStr = log.timestamp ? (log.timestamp.includes('T') ? log.timestamp.split('T')[1].substring(0, 8) : log.timestamp) : '';
+                            return `
+                                <div style="border-bottom: 1px solid #f1f5f9; padding: 6px 0;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <span style="font-weight: 600; color: ${statusColor};">${indicator} ${escapeHtml(log.jobTitle || log.jobId)}</span>
+                                        <span style="font-size: 10px; color: #94a3b8;">${escapeHtml(timeStr)}</span>
+                                    </div>
+                                    <div style="font-size: 10px; color: #64748b;">${escapeHtml(log.company)} (${escapeHtml(log.domain)})</div>
+                                    <div style="font-size: 10px; color: #334155; margin-top: 2px;">${escapeHtml(log.message)}</div>
+                                    ${log.requiresHumanAssistance ? `<button class="btn-card-action" style="margin-top: 4px; background: #fffbeb; color: #b45309; border-color: #fde68a;" onclick="openCredentialsModal('${escapeHtml(log.domain)}')">🔑 Resolve Login / Save Session</button>` : ''}
+                                </div>
+                            `;
+                        }).join('');
+                    } catch (err) {
+                        logPanel.innerHTML = '<div style="color: #dc2626; text-align: center; padding: 10px;">Error loading audit logs</div>';
+                    }
+                }
+
+                function openCredentialsModal(domain) {
+                    const modal = document.getElementById('credentials-modal');
+                    const domainName = document.getElementById('modal-domain-name');
+                    const domainInput = document.getElementById('modal-domain-input');
+                    const usernameInput = document.getElementById('modal-username-input');
+                    const tokenInput = document.getElementById('modal-token-input');
+                    if (!modal) return;
+                    if (domainName) domainName.textContent = domain || 'target domain';
+                    if (domainInput) domainInput.value = domain || '';
+                    if (usernameInput) usernameInput.value = '';
+                    if (tokenInput) tokenInput.value = '';
+                    modal.style.display = 'flex';
+                }
+
+                function closeCredentialsModal() {
+                    const modal = document.getElementById('credentials-modal');
+                    if (modal) modal.style.display = 'none';
+                }
+
+                async function submitCredentialsModal() {
+                    const domain = (document.getElementById('modal-domain-input').value || '').trim();
+                    const username = (document.getElementById('modal-username-input').value || '').trim();
+                    const token = (document.getElementById('modal-token-input').value || '').trim();
+                    if (!domain || !username || !token) {
+                        alert('Please fill in all fields.');
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/credentials', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ domain, username, token })
+                        });
+                        if (!res.ok) throw new Error('Failed to save credentials');
+                        closeCredentialsModal();
+                        alert('Credentials saved for ' + domain + '!');
+                    } catch (err) {
+                        alert('Error saving credentials: ' + err.message);
                     }
                 }
 
