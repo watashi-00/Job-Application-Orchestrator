@@ -1,6 +1,7 @@
 package com.watashi.core.service;
 
 import com.watashi.core.domain.candidate.CandidateProfile;
+import com.watashi.core.domain.discovery.JobDeduplicator;
 import com.watashi.core.domain.discovery.JobQuery;
 import com.watashi.core.domain.job.JobOpportunity;
 import com.watashi.core.domain.matching.FilterConfiguration;
@@ -44,7 +45,6 @@ public class DefaultDiscoverJobsService implements DiscoverJobsUseCase {
                 if (jobs != null) {
                     for (JobOpportunity job : jobs) {
                         if (job != null) {
-                            repository.save(job);
                             fetchedJobs.add(job);
                         }
                     }
@@ -54,7 +54,12 @@ public class DefaultDiscoverJobsService implements DiscoverJobsUseCase {
             }
         }
 
-        List<MatchResult> results = new ArrayList<>(assessUseCase.evaluateAll(fetchedJobs, profile, config));
+        List<JobOpportunity> deduplicatedJobs = JobDeduplicator.deduplicate(fetchedJobs);
+        for (JobOpportunity job : deduplicatedJobs) {
+            repository.save(job);
+        }
+
+        List<MatchResult> results = new ArrayList<>(assessUseCase.evaluateAll(deduplicatedJobs, profile, config));
         results.sort(Comparator.comparingDouble(MatchResult::overallScore).reversed());
         return List.copyOf(results);
     }

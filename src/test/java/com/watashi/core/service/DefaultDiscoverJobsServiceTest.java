@@ -211,4 +211,94 @@ public class DefaultDiscoverJobsServiceTest extends TestCase {
         } catch (NullPointerException expected) {
         }
     }
+
+    public void testDeduplicationAcrossMultipleSources() {
+        Skill java = new Skill("Java", SkillCategory.LANGUAGES_FRAMEWORKS, 5);
+        JobOpportunity job1 = new JobOpportunity(
+                "j1",
+                "Java Developer",
+                "Acme Corp",
+                "Short description",
+                Set.of(java),
+                Set.of(),
+                SeniorityLevel.MID,
+                WorkMode.REMOTE,
+                "Remote",
+                null,
+                "url1",
+                JobStatus.DISCOVERED);
+
+        JobOpportunity job2 = new JobOpportunity(
+                "j2",
+                "Java Developer",
+                "Acme Inc.",
+                "Detailed long description of Java Developer role at Acme",
+                Set.of(java),
+                Set.of(),
+                SeniorityLevel.MID,
+                WorkMode.REMOTE,
+                "Remote",
+                null,
+                "url2",
+                JobStatus.DISCOVERED);
+
+        JobSource source1 = new JobSource() {
+            public String getSourceName() {
+                return "Source1";
+            }
+
+            public List<JobOpportunity> fetchJobs(JobQuery query) {
+                return List.of(job1);
+            }
+        };
+
+        JobSource source2 = new JobSource() {
+            public String getSourceName() {
+                return "Source2";
+            }
+
+            public List<JobOpportunity> fetchJobs(JobQuery query) {
+                return List.of(job2);
+            }
+        };
+
+        JobRepository mockRepo = new JobRepository() {
+            private final Map<String, JobOpportunity> store = new HashMap<>();
+
+            public void save(JobOpportunity j) {
+                store.put(j.id(), j);
+            }
+
+            public List<JobOpportunity> findAll() {
+                return new ArrayList<>(store.values());
+            }
+
+            public Optional<JobOpportunity> findById(String id) {
+                return Optional.ofNullable(store.get(id));
+            }
+        };
+
+        MatchingEngine engine = new MatchingEngine();
+        AssessJobCompatibilityUseCase assessUseCase = new DefaultAssessJobCompatibilityService(engine);
+
+        DiscoverJobsUseCase discoverUseCase =
+                new DefaultDiscoverJobsService(List.of(source1, source2), assessUseCase, mockRepo);
+
+        CandidateProfile profile = new CandidateProfile(
+                "c1",
+                "Dev",
+                "Summary",
+                Set.of(java),
+                Set.of(SeniorityLevel.MID),
+                Set.of(WorkMode.REMOTE),
+                null,
+                Set.of());
+
+        List<MatchResult> results = discoverUseCase.discoverAndEvaluate(profile, FilterConfiguration.defaultConfig());
+
+        assertEquals(1, results.size());
+        assertEquals("j2", results.get(0).jobId());
+        assertEquals(1, mockRepo.findAll().size());
+        assertEquals("j2", mockRepo.findAll().get(0).id());
+    }
 }

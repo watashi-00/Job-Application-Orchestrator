@@ -2,6 +2,8 @@ package com.watashi.runtime;
 
 import com.watashi.adapters.in.web.DashboardHttpServer;
 import com.watashi.adapters.out.ingestor.pdf.PdfCandidateIngestor;
+import com.watashi.adapters.out.jobsource.arbeitnow.ArbeitnowJobSource;
+import com.watashi.adapters.out.jobsource.jobicy.JobicyJobSource;
 import com.watashi.adapters.out.jobsource.remotive.RemotiveJobSource;
 import com.watashi.adapters.out.persistence.json.JsonCandidateProfileRepository;
 import com.watashi.adapters.out.persistence.json.JsonFilterConfigRepository;
@@ -40,6 +42,8 @@ public class Bootstrap {
 
         HttpEngine httpEngine = HttpEngine.createDefault();
         JobSource remotiveSource = new RemotiveJobSource(httpEngine);
+        JobSource arbeitnowSource = new ArbeitnowJobSource(httpEngine);
+        JobSource jobicySource = new JobicyJobSource(httpEngine);
 
         // Persistent JSON repositories in ./data/
         JobRepository jobRepository = new JsonJobRepository();
@@ -53,8 +57,8 @@ public class Bootstrap {
         MatchingEngine matchingEngine = new MatchingEngine();
         AssessJobCompatibilityUseCase assessUseCase = new DefaultAssessJobCompatibilityService(matchingEngine);
 
-        DiscoverJobsUseCase discoverUseCase =
-                new DefaultDiscoverJobsService(List.of(remotiveSource), assessUseCase, jobRepository);
+        DiscoverJobsUseCase discoverUseCase = new DefaultDiscoverJobsService(
+                List.of(remotiveSource, arbeitnowSource, jobicySource), assessUseCase, jobRepository);
 
         // Generate sample PDF resume in memory
         byte[] samplePdfBytes = generateSampleResumePdf();
