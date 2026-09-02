@@ -141,4 +141,51 @@ public class ProfileApiHandlerTest extends TestCase {
             server.stop();
         }
     }
+
+    public void testPostProfileUpdateEndpoint() throws Exception {
+        CandidateProfile mockProfile = new CandidateProfile(
+                "c1", "Initial Title", "Initial Summary", Set.of(), Set.of(), Set.of(), null, Set.of());
+        ManageCandidateProfileUseCase mockManage = new ManageCandidateProfileUseCase() {
+            private CandidateProfile profile = mockProfile;
+
+            public Optional<CandidateProfile> getProfile() {
+                return Optional.ofNullable(profile);
+            }
+
+            public void updateProfile(CandidateProfile p) {
+                this.profile = p;
+            }
+        };
+
+        DashboardHttpServer server =
+                new DashboardHttpServer(18086, null, null, mockManage, (IngestCandidateProfileUseCase) null);
+        server.start();
+        try {
+            HttpClient client = HttpClient.newHttpClient();
+            String jsonPayload =
+                    "{\"title\":\"Staff Software Engineer\",\"summary\":\"Updated Summary\",\"skills\":[\"Java\",\"Spring\"],\"targetSeniorities\":[\"SENIOR\",\"LEAD\"],\"preferredWorkModes\":[\"REMOTE\"]}";
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("http://localhost:18086/api/profile/update"))
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                    .header("Content-Type", "application/json")
+                    .build();
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            assertEquals(200, response.statusCode());
+            assertTrue(response.body().contains("Staff Software Engineer"));
+            assertTrue(response.body().contains("Updated Summary"));
+            assertTrue(response.body().contains("Java"));
+            assertTrue(response.body().contains("SENIOR"));
+            assertTrue(response.body().contains("REMOTE"));
+
+            CandidateProfile updated = mockManage.getProfile().orElseThrow();
+            assertEquals("Staff Software Engineer", updated.title());
+            assertEquals("Updated Summary", updated.summary());
+            assertEquals(2, updated.skills().size());
+            assertEquals(2, updated.targetSeniorities().size());
+            assertEquals(1, updated.preferredWorkModes().size());
+        } finally {
+            server.stop();
+        }
+    }
 }
