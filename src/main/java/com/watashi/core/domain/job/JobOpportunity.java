@@ -31,4 +31,12 @@ public record JobOpportunity(
             status = JobStatus.DISCOVERED;
         }
     }
+
+    public boolean hasSkillNamed(String skillName) {
+        if (skillName == null) {
+            return false;
+        }
+        return requiredSkills.stream().anyMatch(skill -> skill.matchesName(skillName))
+                || optionalSkills.stream().anyMatch(skill -> skill.matchesName(skillName));
+    }
 }
