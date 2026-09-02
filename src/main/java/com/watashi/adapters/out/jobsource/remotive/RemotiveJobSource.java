@@ -237,7 +237,9 @@ public class RemotiveJobSource implements JobSource {
                 .replace("&lt;", "<")
                 .replace("&gt;", ">")
                 .replace("&quot;", "\"")
-                .replace("&#39;", "'");
+                .replace("&#39;", "'")
+                .replace("\u00a0", " ")
+                .replaceAll("\\r?\\n\\s*\\r?\\n", "\n\n");
         return clean.strip();
     }
 
@@ -314,6 +316,8 @@ public class RemotiveJobSource implements JobSource {
                 .replace("\\f", "\f")
                 .replace("\\n", "\n")
                 .replace("\\r", "\r")
-                .replace("\\t", "\t");
+                .replace("\\t", "\t")
+                .replace("\\u00a0", " ")
+                .replace("\\u2192", "->");
     }
 }
